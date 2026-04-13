@@ -1,11 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from '@testing-library/react';
+import { App } from '../src/App';
 
-import { App } from "../src/App";
-
-test("App component display header", () => {
-    render(<App />);
-
-    const heading = screen.getByText(/Final project template/i);
-
-    expect(heading).toBeInTheDocument();
+test('App renders workspace tabs', () => {
+  render(<App />);
+  expect(screen.getByText('Desktop')).toBeInTheDocument();
+  expect(screen.getByText('GitHub')).toBeInTheDocument();
 });

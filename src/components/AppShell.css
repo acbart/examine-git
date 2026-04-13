@@ -1,0 +1,59 @@
+/* AppShell - top bar and workspace tab switcher */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #1e1e1e;
+  color: #cccccc;
+  overflow: hidden;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  background: #323233;
+  padding: 0 16px;
+  gap: 24px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.app-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cccccc;
+  letter-spacing: 0.5px;
+}
+
+.workspace-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.workspace-tab {
+  background: #3c3c3c;
+  color: #9d9d9d;
+  border: none;
+  padding: 4px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+
+.workspace-tab:hover {
+  background: #4a4a4a;
+  color: #cccccc;
+}
+
+.workspace-tab.active {
+  background: #0078d4;
+  color: #ffffff;
+}
+
+.app-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
