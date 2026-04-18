@@ -8,13 +8,20 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 
 const DESKTOP_BREAKPOINT = 768;
 
+type MobilePanel = 'editor' | 'run' | 'terminal';
+
 export function DesktopWorkspace() {
   const { activeSidePanel, setActiveSidePanel } = useWorkspaceStore();
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= DESKTOP_BREAKPOINT);
+  const initialMobile = window.innerWidth < DESKTOP_BREAKPOINT;
+  const [isMobile, setIsMobile] = useState(initialMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(!initialMobile);
+  const [activeMobilePanel, setActiveMobilePanel] = useState<MobilePanel>('editor');
 
   useEffect(() => {
     function handleResize() {
-      setSidebarOpen(window.innerWidth >= DESKTOP_BREAKPOINT);
+      const mobile = window.innerWidth < DESKTOP_BREAKPOINT;
+      setIsMobile(mobile);
+      setSidebarOpen(!mobile);
     }
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -56,9 +63,47 @@ export function DesktopWorkspace() {
         </>
       )}
       <div className="main-area">
-        <EditorPanel />
-        <RunPanel />
-        <TerminalPanel />
+        {isMobile ? (
+          <>
+            <div className="mobile-panel-container">
+              <div className={`mobile-panel-view${activeMobilePanel === 'editor' ? ' active' : ''}`}>
+                <EditorPanel />
+              </div>
+              <div className={`mobile-panel-view${activeMobilePanel === 'run' ? ' active' : ''}`}>
+                <RunPanel />
+              </div>
+              <div className={`mobile-panel-view${activeMobilePanel === 'terminal' ? ' active' : ''}`}>
+                <TerminalPanel />
+              </div>
+            </div>
+            <div className="mobile-tab-bar">
+              <button
+                className={`mobile-tab-btn${activeMobilePanel === 'editor' ? ' active' : ''}`}
+                onClick={() => setActiveMobilePanel('editor')}
+              >
+                📝 Editor
+              </button>
+              <button
+                className={`mobile-tab-btn${activeMobilePanel === 'run' ? ' active' : ''}`}
+                onClick={() => setActiveMobilePanel('run')}
+              >
+                ▶ Run
+              </button>
+              <button
+                className={`mobile-tab-btn${activeMobilePanel === 'terminal' ? ' active' : ''}`}
+                onClick={() => setActiveMobilePanel('terminal')}
+              >
+                $ Terminal
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <EditorPanel />
+            <RunPanel />
+            <TerminalPanel />
+          </>
+        )}
       </div>
     </div>
   );
