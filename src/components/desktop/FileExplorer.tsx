@@ -3,7 +3,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 
 export function FileExplorer() {
   const { listFiles } = useFilesystemStore();
-  const { openFile, activeFilePath } = useWorkspaceStore();
+  const { openFile, activeFilePath, runFilePath, setRunFilePath } = useWorkspaceStore();
 
   const files = listFiles().sort((a, b) => a.path.localeCompare(b.path));
 
@@ -23,6 +23,8 @@ export function FileExplorer() {
     folderMap[folder] = nestedFiles.filter((f) => f.path.startsWith(folder + '/'));
   }
 
+  const isRunnable = (path: string) => /\.(ts|tsx|js|jsx)$/.test(path);
+
   return (
     <div className="file-explorer">
       <div className="panel-header">EXPLORER</div>
@@ -33,10 +35,18 @@ export function FileExplorer() {
             {(folderMap[folder] ?? []).map((file) => (
               <div
                 key={file.path}
-                className={`file-item nested ${activeFilePath === file.path ? 'active' : ''}`}
-                onClick={() => openFile(file.path)}
+                className={`file-item nested ${activeFilePath === file.path ? 'active' : ''} ${runFilePath === file.path ? 'run-target' : ''}`}
               >
-                📄 {file.name}
+                <span className="file-item-name" onClick={() => openFile(file.path)}>
+                  📄 {file.name}
+                </span>
+                {isRunnable(file.path) && (
+                  <button
+                    className="set-run-btn"
+                    onClick={() => setRunFilePath(file.path)}
+                    title={`Set ${file.path} as run target`}
+                  >▶</button>
+                )}
               </div>
             ))}
           </div>
@@ -44,10 +54,18 @@ export function FileExplorer() {
         {rootFiles.map((file) => (
           <div
             key={file.path}
-            className={`file-item ${activeFilePath === file.path ? 'active' : ''}`}
-            onClick={() => openFile(file.path)}
+            className={`file-item ${activeFilePath === file.path ? 'active' : ''} ${runFilePath === file.path ? 'run-target' : ''}`}
           >
-            📄 {file.name}
+            <span className="file-item-name" onClick={() => openFile(file.path)}>
+              📄 {file.name}
+            </span>
+            {isRunnable(file.path) && (
+              <button
+                className="set-run-btn"
+                onClick={() => setRunFilePath(file.path)}
+                title={`Set ${file.path} as run target`}
+              >▶</button>
+            )}
           </div>
         ))}
       </div>

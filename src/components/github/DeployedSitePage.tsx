@@ -24,6 +24,7 @@ export function DeployedSitePage() {
         <span className="deploy-status">● Live</span>
       </div>
       <iframe
+        key={mainBranch.lastPushedAt}
         className="deployed-frame"
         srcDoc={indexFile.content}
         title="Deployed Site"
