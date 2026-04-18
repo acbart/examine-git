@@ -66,7 +66,7 @@ export function TerminalPanel() {
         addLine('output', output);
       }
     } else if (command === 'run') {
-      const filename = args[0] ?? runFilePath ?? '';
+      const filename = (args.length > 0 ? args[0] : runFilePath) ?? '';
       if (!filename) {
         addLine('error', 'No file specified. Usage: run <filename>');
         return;
