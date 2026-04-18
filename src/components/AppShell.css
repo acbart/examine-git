@@ -57,3 +57,27 @@
   overflow: hidden;
   display: flex;
 }
+
+/* ── Mobile responsiveness ─────────────────────────────────────── */
+@media (max-width: 767px) {
+  .app-topbar {
+    padding: 0 8px;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  .app-title {
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .workspace-tabs {
+    flex-shrink: 0;
+  }
+
+  .workspace-tab {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}
