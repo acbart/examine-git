@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FileExplorer } from './FileExplorer';
 import { EditorPanel } from './EditorPanel';
+import { RunPanel } from './RunPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { SourceControlPanel } from './SourceControlPanel';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -56,6 +57,7 @@ export function DesktopWorkspace() {
       )}
       <div className="main-area">
         <EditorPanel />
+        <RunPanel />
         <TerminalPanel />
       </div>
     </div>
