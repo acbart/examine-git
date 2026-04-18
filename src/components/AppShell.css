@@ -11,7 +11,7 @@
 .app-topbar {
   display: flex;
   align-items: center;
-  height: 40px;
+  height: var(--topbar-height);
   background: #323233;
   padding: 0 16px;
   gap: 24px;

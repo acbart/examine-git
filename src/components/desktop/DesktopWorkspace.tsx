@@ -1,13 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileExplorer } from './FileExplorer';
 import { EditorPanel } from './EditorPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { SourceControlPanel } from './SourceControlPanel';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
+const DESKTOP_BREAKPOINT = 768;
+
 export function DesktopWorkspace() {
   const { activeSidePanel, setActiveSidePanel } = useWorkspaceStore();
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= DESKTOP_BREAKPOINT);
+
+  useEffect(() => {
+    function handleResize() {
+      setSidebarOpen(window.innerWidth >= DESKTOP_BREAKPOINT);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   function handleActivityClick(panel: 'explorer' | 'source-control') {
     if (activeSidePanel === panel && sidebarOpen) {

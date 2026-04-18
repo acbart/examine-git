@@ -1,4 +1,11 @@
 /* Dark IDE application styles */
+
+/* Layout dimension tokens used across the IDE */
+:root {
+  --topbar-height: 40px;
+  --activity-bar-width: 48px;
+}
+
 *,
 *::before,
 *::after {
@@ -14,7 +21,7 @@
 }
 
 .activity-bar {
-  width: 48px;
+  width: var(--activity-bar-width);
   background: #333333;
   display: flex;
   flex-direction: column;
@@ -624,8 +631,8 @@
   /* Sidebar becomes a fixed overlay so the editor gets the full width */
   .side-panel {
     position: fixed;
-    top: 40px; /* below the app topbar */
-    left: 48px; /* to the right of the activity bar */
+    top: var(--topbar-height); /* below the app topbar */
+    left: var(--activity-bar-width); /* to the right of the activity bar */
     bottom: 0;
     z-index: 50;
     width: 240px;
