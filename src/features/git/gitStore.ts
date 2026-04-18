@@ -1,16 +1,13 @@
 import { create } from 'zustand';
 import type { GitRepositoryState, GitBranch } from './gitTypes';
 import { executeGitCommand } from './gitEngine';
+import { INITIAL_FILES } from '../filesystem/filesystemStore';
 
 const INITIAL_HASH = 'a1b2c3d4';
 
-const INITIAL_TRACKED: Record<string, string | undefined> = {
-  'index.html': '',
-  'src/main.ts': '',
-  'src/style.css': '',
-  'src/app.py': '',
-  'README.md': '',
-};
+const INITIAL_TRACKED: Record<string, string | undefined> = Object.fromEntries(
+  Object.values(INITIAL_FILES).map((f) => [f.path, f.content])
+);
 
 const INITIAL_BRANCH: GitBranch = {
   name: 'main',
