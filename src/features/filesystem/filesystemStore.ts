@@ -32,7 +32,7 @@ function makeFile(path: string, content: string): VirtualFile {
   return { path, name, content, language: detectLanguage(path), updatedAt: new Date().toISOString() };
 }
 
-const INITIAL_FILES: Record<string, VirtualFile> = {
+export const INITIAL_FILES: Record<string, VirtualFile> = {
   'index.html': makeFile('index.html', `<!DOCTYPE html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>My Project</title>\n    <link rel="stylesheet" href="src/style.css" />\n  </head>\n  <body>\n    <h1>Hello, World!</h1>\n    <p>Welcome to my project.</p>\n    <script type="module" src="src/main.ts"></script>\n  </body>\n</html>`),
   'src/main.ts': makeFile('src/main.ts', `// Main entry point\nconst greeting: string = 'Hello, TypeScript!';\nconsole.log(greeting);\n\nfunction add(a: number, b: number): number {\n  return a + b;\n}\n\nconsole.log(add(1, 2));\n`),
   'src/style.css': makeFile('src/style.css', `body {\n  font-family: system-ui, sans-serif;\n  margin: 0;\n  padding: 2rem;\n  background: #f5f5f5;\n  color: #333;\n}\n\nh1 {\n  color: #007acc;\n}\n`),
