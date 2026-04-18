@@ -40,25 +40,29 @@ function renderLine(line: ConsoleLine) {
 export function RunPanel() {
     const { status, statusMessage, consoleLines, testResults, totalPassed, totalTests, isRunning, elapsedMs, run, terminate, clearConsole } =
         useExecutionStore();
-    const { readFile } = useFilesystemStore();
-    const { activeFilePath } = useWorkspaceStore();
+    const { readFile, listFiles } = useFilesystemStore();
+    const { runFilePath, setRunFilePath } = useWorkspaceStore();
     const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
+
+    const runnableFiles = listFiles()
+        .filter((f) => /\.(ts|tsx|js|jsx)$/.test(f.path))
+        .sort((a, b) => a.path.localeCompare(b.path));
 
     async function handleRun() {
         if (isRunning) {
             terminate();
             return;
         }
-        if (!activeFilePath) return;
+        if (!runFilePath) return;
 
         // Collect TypeScript/JavaScript files for the compiler
-        const file = readFile(activeFilePath);
+        const file = readFile(runFilePath);
         if (!file) return;
 
         const files: Record<string, { contents: string }> = {
-            [activeFilePath]: { contents: file.content },
+            [runFilePath]: { contents: file.content },
         };
-        await run(activeFilePath, files);
+        await run(runFilePath, files);
     }
 
     const statusIcon =
@@ -75,11 +79,25 @@ export function RunPanel() {
                 <button
                     className={`run-btn ${isRunning ? 'running' : ''}`}
                     onClick={() => { void handleRun(); }}
-                    disabled={!activeFilePath}
+                    disabled={!runFilePath}
                     title={isRunning ? 'Stop execution' : 'Run active file'}
                 >
                     {isRunning ? '⏹ Stop' : '▶ Run'}
                 </button>
+                <select
+                    className="run-file-select"
+                    value={runFilePath ?? ''}
+                    onChange={(e) => setRunFilePath(e.target.value || null)}
+                    disabled={isRunning}
+                    title="Select file to run"
+                >
+                    {runnableFiles.length === 0 && (
+                        <option value="">No runnable files</option>
+                    )}
+                    {runnableFiles.map((f) => (
+                        <option key={f.path} value={f.path}>{f.path}</option>
+                    ))}
+                </select>
                 <span className="run-status">
                     {statusIcon} {statusMessage}
                 </span>

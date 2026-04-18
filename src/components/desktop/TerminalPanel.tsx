@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { useGitStore } from '../../features/git/gitStore';
 import { useGithubStore } from '../../features/github/githubStore';
 import { useFilesystemStore } from '../../features/filesystem/filesystemStore';
+import { useExecutionStore } from '../../features/execution/executionStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 
 interface TerminalLine {
   id: number;
@@ -21,7 +23,9 @@ export function TerminalPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const { runCommand, repo } = useGitStore();
   const { pushBranch } = useGithubStore();
-  const { listFiles } = useFilesystemStore();
+  const { listFiles, readFile } = useFilesystemStore();
+  const { run: runCode } = useExecutionStore();
+  const { runFilePath } = useWorkspaceStore();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,6 +65,23 @@ export function TerminalPanel() {
         const output = runCommand(args, fileContents);
         addLine('output', output);
       }
+    } else if (command === 'run') {
+      const filename = args[0] ?? runFilePath ?? '';
+      if (!filename) {
+        addLine('error', 'No file specified. Usage: run <filename>');
+        return;
+      }
+      const file = readFile(filename);
+      if (!file) {
+        addLine('error', `File not found: ${filename}`);
+        return;
+      }
+      if (!/\.(ts|tsx|js|jsx)$/.test(filename)) {
+        addLine('error', `Cannot run ${filename}: only TypeScript/JavaScript files are supported`);
+        return;
+      }
+      addLine('output', `Running ${filename}... (output in Run panel)`);
+      void runCode(filename, { [filename]: { contents: file.content } });
     } else if (command === 'ls') {
       const files = listFiles();
       const fileList = files.map((f) => f.name).join('  ');
@@ -83,6 +104,7 @@ export function TerminalPanel() {
         '  git pull                   - Pull from remote',
         '  git merge <branch>         - Merge branch',
         '  git log                    - Show commit log',
+        '  run [filename]             - Run a TypeScript/JavaScript file',
         '  ls                         - List files',
         '  echo <text>                - Print text',
         '  clear                      - Clear terminal',
