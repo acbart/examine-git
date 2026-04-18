@@ -197,13 +197,20 @@
   min-height: 0;
 }
 
-.editor-tabs {
+.editor-top-bar {
   display: flex;
+  align-items: stretch;
   background: #252526;
   border-bottom: 1px solid #3c3c3c;
-  overflow-x: auto;
   flex-shrink: 0;
   height: 35px;
+}
+
+.editor-tabs {
+  display: flex;
+  overflow-x: auto;
+  flex: 1;
+  height: 100%;
 }
 
 .editor-tabs::-webkit-scrollbar {
@@ -271,6 +278,28 @@
   min-height: 0;
 }
 
+.editor-save-btn {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: none;
+  border: none;
+  border-left: 1px solid #3c3c3c;
+  color: #555;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.editor-save-btn.dirty {
+  color: #e7c97e;
+}
+
+.editor-save-btn:hover {
+  color: #ffffff;
+}
+
 .editor-content .cm-editor {
   height: 100%;
 }
@@ -294,6 +323,11 @@
   flex-shrink: 0;
 }
 
+.terminal-panel.collapsed {
+  height: auto;
+  min-height: 0;
+}
+
 .terminal-header {
   padding: 4px 12px;
   font-size: 11px;
@@ -302,6 +336,25 @@
   letter-spacing: 1px;
   border-bottom: 1px solid #21262d;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-collapse-btn {
+  background: none;
+  border: none;
+  color: #6d6d6d;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.panel-collapse-btn:hover {
+  color: #cccccc;
 }
 
 .terminal-output {
@@ -358,6 +411,10 @@
   flex-shrink: 0;
   max-height: 280px;
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+.run-panel.collapsed {
+  max-height: none;
 }
 
 .run-controls {
@@ -773,6 +830,11 @@
     height: 160px;
   }
 
+  .terminal-panel.collapsed {
+    /* Override the mobile 160px height when panel is collapsed */
+    height: auto;
+  }
+
   /* Slightly wider touch targets for activity bar buttons */
   .activity-bar {
     width: 44px;
@@ -793,6 +855,22 @@
 
   .file-item.nested {
     padding-left: 28px;
+  }
+
+  /* Tab close button: always visible on touch devices */
+  .tab-close {
+    opacity: 1;
+  }
+
+  /* Save button: always visible on mobile */
+  .editor-save-btn {
+    display: flex;
+  }
+
+  /* Larger touch target for collapse buttons */
+  .panel-collapse-btn {
+    font-size: 13px;
+    padding: 4px 8px;
   }
 
   /* GitHub nav: allow horizontal scroll on narrow screens */

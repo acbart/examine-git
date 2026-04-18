@@ -16,6 +16,7 @@ export function TerminalPanel() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
   const nextId = useRef(1);
   const bottomRef = useRef<HTMLDivElement>(null);
   const { runCommand, repo } = useGitStore();
@@ -111,28 +112,41 @@ export function TerminalPanel() {
   }
 
   return (
-    <div className="terminal-panel">
-      <div className="terminal-header">TERMINAL</div>
-      <div className="terminal-output">
-        {lines.map((line) => (
-          <div key={line.id} className={`terminal-line ${line.type}`}>
-            <pre>{line.text}</pre>
+    <div className={`terminal-panel${collapsed ? ' collapsed' : ''}`}>
+      <div className="terminal-header">
+        <span>TERMINAL</span>
+        <button
+          className="panel-collapse-btn"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Expand terminal' : 'Collapse terminal'}
+        >
+          {collapsed ? '▲' : '▼'}
+        </button>
+      </div>
+      {!collapsed && (
+        <>
+          <div className="terminal-output">
+            {lines.map((line) => (
+              <div key={line.id} className={`terminal-line ${line.type}`}>
+                <pre>{line.text}</pre>
+              </div>
+            ))}
+            <div ref={bottomRef} />
           </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-      <div className="terminal-input-row">
-        <span className="terminal-prompt">$</span>
-        <input
-          type="text"
-          className="terminal-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </div>
+          <div className="terminal-input-row">
+            <span className="terminal-prompt">$</span>
+            <input
+              type="text"
+              className="terminal-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              spellCheck={false}
+              autoComplete="off"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
