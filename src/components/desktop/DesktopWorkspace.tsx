@@ -12,15 +12,16 @@ type MobilePanel = 'editor' | 'run' | 'terminal';
 
 export function DesktopWorkspace() {
   const { activeSidePanel, setActiveSidePanel } = useWorkspaceStore();
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= DESKTOP_BREAKPOINT);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < DESKTOP_BREAKPOINT);
+  const initialMobile = window.innerWidth < DESKTOP_BREAKPOINT;
+  const [isMobile, setIsMobile] = useState(initialMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(!initialMobile);
   const [activeMobilePanel, setActiveMobilePanel] = useState<MobilePanel>('editor');
 
   useEffect(() => {
     function handleResize() {
       const mobile = window.innerWidth < DESKTOP_BREAKPOINT;
-      setSidebarOpen(window.innerWidth >= DESKTOP_BREAKPOINT);
       setIsMobile(mobile);
+      setSidebarOpen(!mobile);
     }
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
