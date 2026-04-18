@@ -18,7 +18,7 @@ export function TerminalPanel() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
+  const [collapsed, setCollapsed] = useState(false);
   const nextId = useRef(1);
   const bottomRef = useRef<HTMLDivElement>(null);
   const { runCommand, repo } = useGitStore();

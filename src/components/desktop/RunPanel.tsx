@@ -42,7 +42,7 @@ export function RunPanel() {
         useExecutionStore();
     const { readFile, listFiles } = useFilesystemStore();
     const { runFilePath, setRunFilePath } = useWorkspaceStore();
-    const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
+    const [collapsed, setCollapsed] = useState(false);
 
     const runnableFiles = listFiles()
         .filter((f) => /\.(ts|tsx|js|jsx)$/.test(f.path))
