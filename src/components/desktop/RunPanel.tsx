@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useExecutionStore, type ConsoleLine } from '../../features/execution/executionStore';
 import { useFilesystemStore } from '../../features/filesystem/filesystemStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -41,6 +42,7 @@ export function RunPanel() {
         useExecutionStore();
     const { readFile } = useFilesystemStore();
     const { activeFilePath } = useWorkspaceStore();
+    const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
 
     async function handleRun() {
         if (isRunning) {
@@ -68,7 +70,7 @@ export function RunPanel() {
     const elapsedSec = (elapsedMs / 1000).toFixed(1);
 
     return (
-        <div className="run-panel">
+        <div className={`run-panel${collapsed ? ' collapsed' : ''}`}>
             <div className="run-controls">
                 <button
                     className={`run-btn ${isRunning ? 'running' : ''}`}
@@ -91,30 +93,41 @@ export function RunPanel() {
                 >
                     🗑
                 </button>
+                <button
+                    className="panel-collapse-btn"
+                    onClick={() => setCollapsed((c) => !c)}
+                    title={collapsed ? 'Expand output' : 'Collapse output'}
+                >
+                    {collapsed ? '▲' : '▼'}
+                </button>
             </div>
 
-            {totalTests > 0 && (
-                <div className="run-test-summary">
-                    <span className={totalPassed === totalTests ? 'tests-passed' : 'tests-failed'}>
-                        Tests: {totalPassed}/{totalTests}
-                    </span>
-                    <div className="run-test-list">
-                        {testResults.map((r, i) => (
-                            <div key={i} className={`run-test ${r.passed ? 'passed' : 'failed'}`}>
-                                {r.passed ? '✅' : '❌'}{' '}
-                                {r.suiteName === '__GLOBAL' ? r.testName : `${r.suiteName} › ${r.testName}`}
+            {!collapsed && (
+                <>
+                    {totalTests > 0 && (
+                        <div className="run-test-summary">
+                            <span className={totalPassed === totalTests ? 'tests-passed' : 'tests-failed'}>
+                                Tests: {totalPassed}/{totalTests}
+                            </span>
+                            <div className="run-test-list">
+                                {testResults.map((r, i) => (
+                                    <div key={i} className={`run-test ${r.passed ? 'passed' : 'failed'}`}>
+                                        {r.passed ? '✅' : '❌'}{' '}
+                                        {r.suiteName === '__GLOBAL' ? r.testName : `${r.suiteName} › ${r.testName}`}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+                        </div>
+                    )}
 
-            <div className="run-console">
-                <div className="run-console-header">OUTPUT</div>
-                <div className="run-console-output">
-                    {consoleLines.map(renderLine)}
-                </div>
-            </div>
+                    <div className="run-console">
+                        <div className="run-console-header">OUTPUT</div>
+                        <div className="run-console-output">
+                            {consoleLines.map(renderLine)}
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }

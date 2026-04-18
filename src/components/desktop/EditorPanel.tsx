@@ -88,27 +88,38 @@ export function EditorPanel() {
 
   return (
     <div className="editor-panel">
-      <div className="editor-tabs">
-        {openTabs.map((tabPath) => {
-          const file = readFile(tabPath);
-          const isDirty = dirtyFiles.includes(tabPath);
-          return (
-            <div
-              key={tabPath}
-              className={`editor-tab ${activeFilePath === tabPath ? 'active' : ''}`}
-              onClick={() => openFile(tabPath)}
-            >
-              <span className="tab-name">{file?.name ?? tabPath}</span>
-              {isDirty && <span className="tab-dirty">●</span>}
-              <button
-                className="tab-close"
-                onClick={(e) => { e.stopPropagation(); closeTab(tabPath); }}
+      <div className="editor-top-bar">
+        <div className="editor-tabs">
+          {openTabs.map((tabPath) => {
+            const file = readFile(tabPath);
+            const isDirty = dirtyFiles.includes(tabPath);
+            return (
+              <div
+                key={tabPath}
+                className={`editor-tab ${activeFilePath === tabPath ? 'active' : ''}`}
+                onClick={() => openFile(tabPath)}
               >
-                ×
-              </button>
-            </div>
-          );
-        })}
+                <span className="tab-name">{file?.name ?? tabPath}</span>
+                {isDirty && <span className="tab-dirty">●</span>}
+                <button
+                  className="tab-close"
+                  onClick={(e) => { e.stopPropagation(); closeTab(tabPath); }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {activeFilePath !== null && (
+          <button
+            className={`editor-save-btn${dirtyFiles.includes(activeFilePath) ? ' dirty' : ''}`}
+            onClick={saveCurrentFile}
+            title="Save (Ctrl+S)"
+          >
+            💾
+          </button>
+        )}
       </div>
       {activeFilePath !== null ? (
         <div className="editor-content" ref={editorContainerRef} />
