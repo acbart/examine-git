@@ -325,6 +325,7 @@
 
 .terminal-panel.collapsed {
   height: auto;
+  min-height: 0;
 }
 
 .terminal-header {
@@ -830,6 +831,7 @@
   }
 
   .terminal-panel.collapsed {
+    /* Override the mobile 160px height when panel is collapsed */
     height: auto;
   }
 
