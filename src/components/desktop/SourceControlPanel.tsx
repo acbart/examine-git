@@ -1,11 +1,11 @@
 import { useGitStore } from '../../features/git/gitStore';
-import { useFilesystemStore } from '../../features/filesystem/filesystemStore';
+import { useFilesystemStore, type VirtualFile } from '../../features/filesystem/filesystemStore';
 
 export function SourceControlPanel() {
   const { repo } = useGitStore();
   const { files } = useFilesystemStore();
 
-  const allFiles = useFilesystemStore((state) => state.listFiles());
+  const allFiles = Object.values(files).filter((f): f is VirtualFile => f !== undefined);
 
   const modified: string[] = [];
   const untracked: string[] = [];
