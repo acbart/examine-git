@@ -263,10 +263,8 @@ function ResetBar() {
     }
     // Restore all tracked files to their committed state
     for (const [path, content] of Object.entries(repo.trackedFiles)) {
-      if (content !== undefined) {
-        resetFile(path, content);
-        markClean(path);
-      }
+      resetFile(path, content);
+      markClean(path);
     }
     setConfirm(false);
   }

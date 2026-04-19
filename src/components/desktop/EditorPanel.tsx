@@ -23,6 +23,8 @@ function getLanguageExtension(language: FileLanguage): Extension {
   }
 }
 
+const EDITOR_MOUNT_DELAY_MS = 50;
+
 export function EditorPanel() {
   const { activeFilePath, openTabs, closeTab, dirtyFiles, markDirty, markClean, lineJumpRequest, clearLineJump } = useWorkspaceStore();
   const { readFile, writeFile } = useFilesystemStore();
@@ -95,7 +97,6 @@ export function EditorPanel() {
     if (path !== activeFilePath) {
       openFile(path);
     }
-    // Scroll and move cursor after a short tick to allow the view to mount
     const timer = setTimeout(() => {
       const v = viewRef.current;
       if (v === null) return;
@@ -107,7 +108,7 @@ export function EditorPanel() {
         effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' }),
       });
       v.focus();
-    }, 50);
+    }, EDITOR_MOUNT_DELAY_MS);
     clearLineJump();
     return () => clearTimeout(timer);
   }, [lineJumpRequest, activeFilePath, openFile, clearLineJump]);

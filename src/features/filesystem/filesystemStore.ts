@@ -52,14 +52,7 @@ export const useFilesystemStore = create<FilesystemState>()((set, get) => ({
         : makeFile(path, content);
       return { files: { ...state.files, [path]: updated } };
     }),
-  resetFile: (path, content) =>
-    set((state) => {
-      const existing = state.files[path];
-      const updated = existing
-        ? { ...existing, content, updatedAt: new Date().toISOString() }
-        : makeFile(path, content);
-      return { files: { ...state.files, [path]: updated } };
-    }),
+  resetFile: (path, content) => get().writeFile(path, content),
   listFiles: () =>
     Object.values(get().files).filter((f): f is VirtualFile => f !== undefined),
 }));
