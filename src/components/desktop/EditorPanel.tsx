@@ -24,7 +24,7 @@ function getLanguageExtension(language: FileLanguage): Extension {
 }
 
 export function EditorPanel() {
-  const { activeFilePath, openTabs, closeTab, dirtyFiles, markDirty, markClean } = useWorkspaceStore();
+  const { activeFilePath, openTabs, closeTab, dirtyFiles, markDirty, markClean, lineJumpRequest, clearLineJump } = useWorkspaceStore();
   const { readFile, writeFile } = useFilesystemStore();
   const openFile = useWorkspaceStore((s) => s.openFile);
 
@@ -85,6 +85,32 @@ export function EditorPanel() {
       viewRef.current = null;
     };
   }, [activeFilePath, readFile, markDirty, saveCurrentFile]);
+
+  // Handle line jump requests from the quiz panel
+  useEffect(() => {
+    if (lineJumpRequest === null) return;
+    const { path, line } = lineJumpRequest;
+    const view = viewRef.current;
+    // Open the file if it isn't already active
+    if (path !== activeFilePath) {
+      openFile(path);
+    }
+    // Scroll and move cursor after a short tick to allow the view to mount
+    const timer = setTimeout(() => {
+      const v = viewRef.current;
+      if (v === null) return;
+      const doc = v.state.doc;
+      const targetLine = Math.max(1, Math.min(line, doc.lines));
+      const lineObj = doc.line(targetLine);
+      v.dispatch({
+        selection: { anchor: lineObj.from },
+        effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' }),
+      });
+      v.focus();
+    }, 50);
+    clearLineJump();
+    return () => clearTimeout(timer);
+  }, [lineJumpRequest, activeFilePath, openFile, clearLineJump]);
 
   return (
     <div className="editor-panel">

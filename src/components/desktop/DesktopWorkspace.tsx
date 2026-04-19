@@ -4,14 +4,15 @@ import { EditorPanel } from './EditorPanel';
 import { RunPanel } from './RunPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { SourceControlPanel } from './SourceControlPanel';
+import { QuizPanel } from './QuizPanel';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
 const DESKTOP_BREAKPOINT = 768;
 
-type MobilePanel = 'editor' | 'run' | 'terminal';
+type MobilePanel = 'editor' | 'run' | 'terminal' | 'quiz';
 
 export function DesktopWorkspace() {
-  const { activeSidePanel, setActiveSidePanel } = useWorkspaceStore();
+  const { activeSidePanel, setActiveSidePanel, quizPanelOpen, setQuizPanelOpen } = useWorkspaceStore();
   const initialMobile = window.innerWidth < DESKTOP_BREAKPOINT;
   const [isMobile, setIsMobile] = useState(initialMobile);
   const [sidebarOpen, setSidebarOpen] = useState(!initialMobile);
@@ -53,6 +54,13 @@ export function DesktopWorkspace() {
         >
           🔀
         </button>
+        <button
+          className={`activity-btn ${quizPanelOpen ? 'active' : ''}`}
+          onClick={() => setQuizPanelOpen(!quizPanelOpen)}
+          title="Quiz"
+        >
+          📝
+        </button>
       </div>
       {sidebarOpen && (
         <>
@@ -75,6 +83,9 @@ export function DesktopWorkspace() {
               <div className={`mobile-panel-view${activeMobilePanel === 'terminal' ? ' active' : ''}`}>
                 <TerminalPanel />
               </div>
+              <div className={`mobile-panel-view${activeMobilePanel === 'quiz' ? ' active' : ''}`}>
+                <QuizPanel />
+              </div>
             </div>
             <div className="mobile-tab-bar">
               <button
@@ -95,14 +106,27 @@ export function DesktopWorkspace() {
               >
                 $ Terminal
               </button>
+              <button
+                className={`mobile-tab-btn${activeMobilePanel === 'quiz' ? ' active' : ''}`}
+                onClick={() => setActiveMobilePanel('quiz')}
+              >
+                📋 Quiz
+              </button>
             </div>
           </>
         ) : (
-          <>
-            <EditorPanel />
-            <RunPanel />
-            <TerminalPanel />
-          </>
+          <div className="editor-quiz-area">
+            <div className="editor-stack">
+              <EditorPanel />
+              <RunPanel />
+              <TerminalPanel />
+            </div>
+            {quizPanelOpen && (
+              <div className="quiz-right-panel">
+                <QuizPanel />
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

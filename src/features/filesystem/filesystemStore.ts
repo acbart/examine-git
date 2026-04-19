@@ -14,6 +14,7 @@ interface FilesystemState {
   files: Record<string, VirtualFile | undefined>;
   readFile: (path: string) => VirtualFile | undefined;
   writeFile: (path: string, content: string) => void;
+  resetFile: (path: string, content: string) => void;
   listFiles: () => VirtualFile[];
 }
 
@@ -44,6 +45,14 @@ export const useFilesystemStore = create<FilesystemState>()((set, get) => ({
   files: { ...INITIAL_FILES },
   readFile: (path) => get().files[path],
   writeFile: (path, content) =>
+    set((state) => {
+      const existing = state.files[path];
+      const updated = existing
+        ? { ...existing, content, updatedAt: new Date().toISOString() }
+        : makeFile(path, content);
+      return { files: { ...state.files, [path]: updated } };
+    }),
+  resetFile: (path, content) =>
     set((state) => {
       const existing = state.files[path];
       const updated = existing
