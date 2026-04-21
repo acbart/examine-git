@@ -49,7 +49,7 @@ let libFiles: Record<string, string> | null = null;
 
 async function getLibFiles(): Promise<Record<string, string>> {
     if (libFiles !== null) return libFiles;
-    const resp = await fetch('/ts-lib-files.json');
+    const resp = await fetch(import.meta.env.BASE_URL + 'ts-lib-files.json');
     libFiles = (await resp.json()) as Record<string, string>;
     return libFiles;
 }
