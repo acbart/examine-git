@@ -114,10 +114,7 @@ export function executeGitCommand(
       const hash = generateHash();
       const commitFileContents: Record<string, string> = {};
       for (const f of state.stagedFiles) {
-        const content = fileContents[f];
-        if (content !== undefined) {
-          commitFileContents[f] = content;
-        }
+        commitFileContents[f] = fileContents[f];
       }
       const commit: GitCommit = {
         hash,
@@ -287,11 +284,16 @@ export function executeGitCommand(
       }
 
       const mergeHash = generateHash();
+      const mergeFileContents: Record<string, string> = {};
+      for (const [k, v] of Object.entries(newTracked)) {
+        if (v !== undefined) mergeFileContents[k] = v;
+      }
       const mergeCommit: GitCommit = {
         hash: mergeHash,
         message: `Merge branch '${sourceBranch}' into ${state.currentBranch}`,
         timestamp: new Date().toISOString(),
         files: [...Object.keys(newTracked)],
+        fileContents: mergeFileContents,
       };
 
       return {

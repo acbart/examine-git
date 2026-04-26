@@ -290,7 +290,7 @@ describe('gitEngine – merge', () => {
         const state: GitRepositoryState = {
             ...makeInitedState(),
             commits: {
-                abc: { hash: 'abc', message: 'feat commit', timestamp: '', files: ['src/main.ts'] },
+                abc: { hash: 'abc', message: 'feat commit', timestamp: '', files: ['src/main.ts'], fileContents: {} },
             },
             branches: {
                 main: { name: 'main', commitHashes: [] },
@@ -318,8 +318,8 @@ describe('gitEngine – log', () => {
         const state: GitRepositoryState = {
             ...makeInitedState(),
             commits: {
-                aaa: { hash: 'aaa', message: 'first', timestamp: '2024-01-01', files: [] },
-                bbb: { hash: 'bbb', message: 'second', timestamp: '2024-01-02', files: [] },
+                aaa: { hash: 'aaa', message: 'first', timestamp: '2024-01-01', files: [], fileContents: {} },
+                bbb: { hash: 'bbb', message: 'second', timestamp: '2024-01-02', files: [], fileContents: {} },
             },
             branches: {
                 main: { name: 'main', commitHashes: ['aaa', 'bbb'] },
