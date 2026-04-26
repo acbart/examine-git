@@ -1,7 +1,6 @@
 import { useQuizStore } from '../src/features/quiz/quizStore';
 import type {
     Quiz,
-    UserAnswer,
     MultipleChoiceAnswer,
     FillBlankAnswer,
     MultiFillBlankAnswer,
