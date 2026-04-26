@@ -161,7 +161,7 @@ export function EditorPanel() {
       </div>
       {activeFilePath !== null ? (
         <div className="editor-content-wrapper">
-          {editorLocked && pausedTaskId !== null && (
+          {editorLocked && (
             <div className="editor-lock-banner">
               ⏸ Editor is paused while task is suspended.{' '}
               <button

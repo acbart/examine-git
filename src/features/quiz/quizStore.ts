@@ -120,7 +120,7 @@ function runBranchDiffAutograde(
   for (const check of checks) {
     switch (check.type) {
       case 'fileExists':
-        if (branchFiles[check.path] === undefined) return 'incorrect';
+        if (!(check.path in branchFiles)) return 'incorrect';
         break;
       case 'fileContains':
         if (!(branchFiles[check.path] ?? '').includes(check.pattern)) return 'incorrect';
@@ -447,7 +447,7 @@ export const useQuizStore = create<QuizState>()((set, get) => ({
     const question = quiz.groups
       .flatMap((g) => g.questions)
       .find((q) => q.id === questionId) as TaskQuestion | undefined;
-    if (!question || question.type !== 'task') return;
+    if (!question) return;
 
     // Pause any other active task first.
     if (state.activeTaskId !== null && state.activeTaskId !== questionId) {
