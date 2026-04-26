@@ -31,4 +31,6 @@ export default {
         "^@codemirror/state$": "<rootDir>/node_modules/@codemirror/state/dist/index.cjs",
         "^@codemirror/view$": "<rootDir>/node_modules/@codemirror/view/dist/index.cjs",
     },
+    // uuid ships only ESM; allow @swc/jest to transpile it
+    transformIgnorePatterns: ["/node_modules/(?!uuid)"],
 };

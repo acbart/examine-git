@@ -202,8 +202,8 @@ interface QuizState {
   currentGroupIndex: number;
   /** Indices of groups that have been submitted (locked for editing). */
   submittedGroups: Set<number>;
-  answers: Record<string, UserAnswer>;
-  grades: Record<string, GradeResult>;
+  answers: Record<string, UserAnswer | undefined>;
+  grades: Record<string, GradeResult | undefined>;
 
   setQuiz: (quiz: Quiz) => void;
   clearQuiz: () => void;
@@ -235,12 +235,11 @@ export const useQuizStore = create<QuizState>()((set, get) => ({
     const { quiz, currentGroupIndex, answers, submittedGroups } = get();
     if (!quiz) return;
     const group = quiz.groups[currentGroupIndex];
-    if (!group) return;
 
     const newGrades: Record<string, GradeResult> = {};
     for (const question of group.questions) {
       const answer = answers[question.id];
-      if (answer) {
+      if (answer !== undefined) {
         newGrades[question.id] = gradeAnswer(question, answer);
       }
     }

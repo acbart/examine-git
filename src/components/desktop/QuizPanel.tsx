@@ -32,8 +32,8 @@ function parseText(text: string): TextSegment[] {
     if (m.index > last) segments.push({ kind: 'text', content: text.slice(last, m.index) });
     segments.push({
       kind: 'lineref',
-      path: m[1]!,
-      line: parseInt(m[2]!, 10),
+      path: m[1],
+      line: parseInt(m[2], 10),
       label: m[3] || `${m[1]}:${m[2]}`,
     });
     last = m.index + m[0].length;
@@ -234,13 +234,13 @@ function MultiFillBlankRenderer({
           <span className="quiz-multi-fill-text">{part}</span>
           {i < question.blanks.length && (
             <input
-              key={question.blanks[i]!.id}
+              key={question.blanks[i].id}
               className="quiz-fill-input inline"
               type="text"
-              value={values[question.blanks[i]!.id] ?? ''}
-              placeholder={question.blanks[i]!.placeholder ?? '___'}
+              value={values[question.blanks[i].id] ?? ''}
+              placeholder={question.blanks[i].placeholder ?? '___'}
               disabled={submitted}
-              onChange={(e) => handleChange(question.blanks[i]!.id, e.target.value)}
+              onChange={(e) => handleChange(question.blanks[i].id, e.target.value)}
             />
           )}
         </span>
@@ -274,7 +274,7 @@ function MatchingRenderer({
     for (let i = arr.length - 1; i > 0; i--) {
       seed = (seed * 1664525 + 1013904223) & 0xffffffff;
       const j = Math.abs(seed) % (i + 1);
-      [arr[i], arr[j]] = [arr[j]!, arr[i]!];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
   }, [question.id, question.items]);
@@ -464,7 +464,7 @@ export function QuizPanel() {
     );
   }
 
-  const group = quiz.groups[currentGroupIndex]!;
+  const group = quiz.groups[currentGroupIndex];
   const isSubmitted = submittedGroups.has(currentGroupIndex);
   const isLast = currentGroupIndex === quiz.groups.length - 1;
 
