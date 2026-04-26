@@ -1,4 +1,6 @@
 import { useQuizStore } from '../src/features/quiz/quizStore';
+import { useGitStore } from '../src/features/git/gitStore';
+import { useFilesystemStore, INITIAL_FILES } from '../src/features/filesystem/filesystemStore';
 import type {
     Quiz,
     MultipleChoiceAnswer,
@@ -6,6 +8,7 @@ import type {
     MultiFillBlankAnswer,
     MatchingAnswer,
     FreeResponseAnswer,
+    TaskAnswer,
 } from '../src/features/quiz/quizTypes';
 
 // ── Fixture helpers ────────────────────────────────────────────────
@@ -100,7 +103,41 @@ function resetStore(quiz: Quiz | null = null) {
         submittedGroups: new Set(),
         answers: {},
         grades: {},
+        taskStates: {},
+        activeTaskId: null,
     });
+}
+
+function resetGitStore() {
+    useGitStore.setState({
+        repo: {
+            initialized: true,
+            currentBranch: 'main',
+            branches: {
+                main: {
+                    name: 'main',
+                    commitHashes: ['a1b2c3d4'],
+                },
+            },
+            commits: {
+                a1b2c3d4: {
+                    hash: 'a1b2c3d4',
+                    message: 'Initial commit',
+                    timestamp: new Date().toISOString(),
+                    files: Object.keys(INITIAL_FILES),
+                    fileContents: Object.fromEntries(
+                        Object.values(INITIAL_FILES).map((f) => [f.path, f.content]),
+                    ),
+                },
+            },
+            stagedFiles: [],
+            trackedFiles: Object.fromEntries(
+                Object.values(INITIAL_FILES).map((f) => [f.path, f.content]),
+            ),
+        },
+        lastOutput: '',
+    });
+    useFilesystemStore.setState({ files: { ...INITIAL_FILES } });
 }
 
 // ── Tests ──────────────────────────────────────────────────────────
@@ -538,5 +575,374 @@ describe('quizStore – setRubricScore / setRubricComment', () => {
         useQuizStore.getState().setRubricComment('q1', 'r2', 'Could improve');
         expect(useQuizStore.getState().grades['q1']?.rubricComments?.['r1']).toBe('Good');
         expect(useQuizStore.getState().grades['q1']?.rubricComments?.['r2']).toBe('Could improve');
+    });
+});
+
+// ── Task question helpers ──────────────────────────────────────────
+
+function makeTaskQuiz(): Quiz {
+    return {
+        id: 'task-quiz',
+        title: 'Task Quiz',
+        groups: [
+            {
+                id: 'g1',
+                requireAll: true,
+                questions: [
+                    {
+                        id: 'tq1',
+                        type: 'task',
+                        text: 'Add a multiply function',
+                        baseBranch: 'main',
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+function makeChainedTaskQuiz(): Quiz {
+    return {
+        id: 'chained-quiz',
+        title: 'Chained Quiz',
+        groups: [
+            {
+                id: 'g1',
+                requireAll: true,
+                questions: [
+                    {
+                        id: 'tq1',
+                        type: 'task',
+                        text: 'First task',
+                        baseBranch: 'main',
+                    },
+                ],
+            },
+            {
+                id: 'g2',
+                requireAll: true,
+                questions: [
+                    {
+                        id: 'tq2',
+                        type: 'task',
+                        text: 'Second task – builds on first',
+                        baseBranch: { fromTask: 'tq1' },
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+// ── Task store tests ───────────────────────────────────────────────
+
+describe('quizStore – startTask', () => {
+    beforeEach(() => {
+        resetGitStore();
+        resetStore(makeTaskQuiz());
+    });
+
+    test('sets status to in-progress and creates a working branch', () => {
+        useQuizStore.getState().startTask('tq1');
+        const ts = useQuizStore.getState().taskStates['tq1'];
+        expect(ts?.status).toBe('in-progress');
+        expect(ts?.workingBranch).toBe('task/task-quiz/tq1');
+    });
+
+    test('sets activeTaskId', () => {
+        useQuizStore.getState().startTask('tq1');
+        expect(useQuizStore.getState().activeTaskId).toBe('tq1');
+    });
+
+    test('creates the branch in the git store', () => {
+        useQuizStore.getState().startTask('tq1');
+        expect(useGitStore.getState().repo.branches['task/task-quiz/tq1']).toBeDefined();
+    });
+
+    test('switches the git store to the task branch', () => {
+        useQuizStore.getState().startTask('tq1');
+        expect(useGitStore.getState().repo.currentBranch).toBe('task/task-quiz/tq1');
+    });
+
+    test('is a no-op when quiz is null', () => {
+        resetStore(null);
+        useQuizStore.getState().startTask('tq1');
+        expect(useQuizStore.getState().activeTaskId).toBeNull();
+    });
+});
+
+describe('quizStore – startTask with starter patches', () => {
+    beforeEach(() => {
+        resetGitStore();
+        const quiz: Quiz = {
+            id: 'patch-quiz',
+            title: 'Patch Quiz',
+            groups: [
+                {
+                    id: 'g1',
+                    requireAll: true,
+                    questions: [
+                        {
+                            id: 'tq1',
+                            type: 'task',
+                            text: 'Fix the scaffold',
+                            baseBranch: 'main',
+                            starterPatches: [
+                                { path: 'src/main.ts', content: '// scaffold\nconst x = 0;' },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        resetStore(quiz);
+    });
+
+    test('applies starter patches to the working branch', () => {
+        useQuizStore.getState().startTask('tq1');
+        const content = useFilesystemStore.getState().readFile('src/main.ts')?.content;
+        expect(content).toBe('// scaffold\nconst x = 0;');
+    });
+
+    test('starter patch commit is included in base commit count', () => {
+        useQuizStore.getState().startTask('tq1');
+        const ts = useQuizStore.getState().taskStates['tq1'];
+        const branch = useGitStore.getState().repo.branches['task/patch-quiz/tq1'];
+        // baseCommitCount must equal the branch length after the patch commit.
+        expect(ts?.baseCommitCount).toBe(branch?.commitHashes.length ?? -1);
+    });
+});
+
+describe('quizStore – pauseTask / resumeTask', () => {
+    beforeEach(() => {
+        resetGitStore();
+        resetStore(makeTaskQuiz());
+    });
+
+    test('pauseTask clears activeTaskId', () => {
+        useQuizStore.getState().startTask('tq1');
+        useQuizStore.getState().pauseTask();
+        expect(useQuizStore.getState().activeTaskId).toBeNull();
+    });
+
+    test('pauseTask preserves uncommitted changes in taskState', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// edited');
+        useQuizStore.getState().pauseTask();
+        const ts = useQuizStore.getState().taskStates['tq1'];
+        expect(ts?.uncommittedChanges['src/main.ts']).toBe('// edited');
+    });
+
+    test('resumeTask sets activeTaskId again', () => {
+        useQuizStore.getState().startTask('tq1');
+        useQuizStore.getState().pauseTask();
+        useQuizStore.getState().resumeTask('tq1');
+        expect(useQuizStore.getState().activeTaskId).toBe('tq1');
+    });
+
+    test('resumeTask re-applies uncommitted changes', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// edited');
+        useQuizStore.getState().pauseTask();
+        useQuizStore.getState().resumeTask('tq1');
+        const content = useFilesystemStore.getState().readFile('src/main.ts')?.content;
+        expect(content).toBe('// edited');
+    });
+
+    test('starting a second task pauses the first', () => {
+        // Add a second task question to the quiz
+        const quiz: Quiz = {
+            id: 'two-task-quiz',
+            title: 'Two Tasks',
+            groups: [
+                {
+                    id: 'g1',
+                    requireAll: true,
+                    questions: [
+                        { id: 'tq1', type: 'task', text: 'Task 1', baseBranch: 'main' },
+                    ],
+                },
+                {
+                    id: 'g2',
+                    requireAll: true,
+                    questions: [
+                        { id: 'tq2', type: 'task', text: 'Task 2', baseBranch: 'main' },
+                    ],
+                },
+            ],
+        };
+        resetStore(quiz);
+        useQuizStore.getState().startTask('tq1');
+        useQuizStore.getState().startTask('tq2');
+        expect(useQuizStore.getState().activeTaskId).toBe('tq2');
+        expect(useQuizStore.getState().taskStates['tq1']?.status).toBe('in-progress');
+    });
+});
+
+describe('quizStore – submitTask', () => {
+    beforeEach(() => {
+        resetGitStore();
+        resetStore(makeTaskQuiz());
+    });
+
+    test('requires at least one commit above base', () => {
+        useQuizStore.getState().startTask('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        expect(useQuizStore.getState().taskStates['tq1']?.status).toBe('in-progress');
+    });
+
+    test('submits after a saveCheckpoint', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// add multiply');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        expect(useQuizStore.getState().taskStates['tq1']?.status).toBe('submitted');
+    });
+
+    test('records a TaskAnswer on submission', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// add multiply');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        const ans = useQuizStore.getState().answers['tq1'] as TaskAnswer;
+        expect(ans?.type).toBe('task');
+        expect(ans?.commitCount).toBeGreaterThan(0);
+        expect(ans?.submittedBranch).toBe('task/task-quiz/tq1');
+    });
+
+    test('clears activeTaskId after submission', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// change');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        expect(useQuizStore.getState().activeTaskId).toBeNull();
+    });
+});
+
+describe('quizStore – submitTask branch-diff autograde', () => {
+    beforeEach(() => resetGitStore());
+
+    test('passes fileContains check', () => {
+        const quiz: Quiz = {
+            id: 'autograde-quiz',
+            title: 'Autograde',
+            groups: [
+                {
+                    id: 'g1',
+                    requireAll: true,
+                    questions: [
+                        {
+                            id: 'tq1',
+                            type: 'task',
+                            text: 'Add multiply',
+                            baseBranch: 'main',
+                            autograde: [
+                                {
+                                    type: 'branch-diff',
+                                    checks: [
+                                        { type: 'fileContains', path: 'src/main.ts', pattern: 'multiply' },
+                                        { type: 'commitCount', min: 1 },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        resetStore(quiz);
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', 'function multiply(a,b){return a*b;}');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        expect(useQuizStore.getState().grades['tq1']?.autograde).toBe('correct');
+    });
+
+    test('fails fileContains check when pattern absent', () => {
+        const quiz: Quiz = {
+            id: 'autograde-quiz',
+            title: 'Autograde',
+            groups: [
+                {
+                    id: 'g1',
+                    requireAll: true,
+                    questions: [
+                        {
+                            id: 'tq1',
+                            type: 'task',
+                            text: 'Add multiply',
+                            baseBranch: 'main',
+                            autograde: [
+                                {
+                                    type: 'branch-diff',
+                                    checks: [
+                                        { type: 'fileContains', path: 'src/main.ts', pattern: 'multiply' },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        resetStore(quiz);
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// no such function');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        expect(useQuizStore.getState().grades['tq1']?.autograde).toBe('incorrect');
+    });
+});
+
+describe('quizStore – reopenTask', () => {
+    beforeEach(() => {
+        resetGitStore();
+        resetStore(makeTaskQuiz());
+    });
+
+    test('changes status back to in-progress', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// change');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        useQuizStore.getState().reopenTask('tq1');
+        expect(useQuizStore.getState().taskStates['tq1']?.status).toBe('in-progress');
+    });
+
+    test('clears the answer and grade', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// change');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        useQuizStore.getState().reopenTask('tq1');
+        expect(useQuizStore.getState().answers['tq1']).toBeUndefined();
+        expect(useQuizStore.getState().grades['tq1']).toBeUndefined();
+    });
+
+    test('is a no-op when task is not submitted', () => {
+        useQuizStore.getState().startTask('tq1');
+        useQuizStore.getState().reopenTask('tq1');
+        expect(useQuizStore.getState().taskStates['tq1']?.status).toBe('in-progress');
+    });
+});
+
+describe('quizStore – chained tasks (fromTask)', () => {
+    beforeEach(() => {
+        resetGitStore();
+        resetStore(makeChainedTaskQuiz());
+    });
+
+    test('second task cannot start before first is submitted', () => {
+        useQuizStore.getState().startTask('tq2');
+        expect(useQuizStore.getState().activeTaskId).toBeNull();
+    });
+
+    test('second task can start once first is submitted', () => {
+        useQuizStore.getState().startTask('tq1');
+        useFilesystemStore.getState().writeFile('src/main.ts', '// first change');
+        useQuizStore.getState().saveCheckpoint('tq1');
+        useQuizStore.getState().submitTask('tq1');
+        useQuizStore.getState().startTask('tq2');
+        expect(useQuizStore.getState().activeTaskId).toBe('tq2');
     });
 });

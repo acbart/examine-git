@@ -10,6 +10,7 @@ import { css } from '@codemirror/lang-css';
 import type { Extension } from '@codemirror/state';
 import { useFilesystemStore } from '../../features/filesystem/filesystemStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useQuizStore } from '../../features/quiz/quizStore';
 import type { FileLanguage } from '../../features/filesystem/filesystemStore';
 
 function getLanguageExtension(language: FileLanguage): Extension {
@@ -37,6 +38,16 @@ export function EditorPanel() {
   const { activeFilePath, openTabs, closeTab, dirtyFiles, markDirty, markClean, pendingLineJump, clearLineJump } = useWorkspaceStore();
   const { readFile, writeFile } = useFilesystemStore();
   const openFile = useWorkspaceStore((s) => s.openFile);
+  const { activeTaskId, taskStates, resumeTask } = useQuizStore();
+
+  // Compute whether the editor should be locked (a task is paused).
+  const pausedTaskId =
+    activeTaskId === null
+      ? (Object.keys(taskStates).find(
+          (id) => taskStates[id]?.status === 'in-progress',
+        ) ?? null)
+      : null;
+  const editorLocked = pausedTaskId !== null;
 
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -83,6 +94,7 @@ export function EditorPanel() {
       getLanguageExtension(language),
       updateListener,
       saveKeymap,
+      EditorState.readOnly.of(editorLocked),
     ];
 
     const state = EditorState.create({ doc, extensions });
@@ -101,7 +113,7 @@ export function EditorPanel() {
       view.destroy();
       viewRef.current = null;
     };
-  }, [activeFilePath, readFile, markDirty, saveCurrentFile]);
+  }, [activeFilePath, editorLocked, readFile, markDirty, saveCurrentFile]);
 
   // Handle line jumps for the already-active file (no editor recreation needed).
   useEffect(() => {
@@ -148,7 +160,20 @@ export function EditorPanel() {
         )}
       </div>
       {activeFilePath !== null ? (
-        <div className="editor-content" ref={editorContainerRef} />
+        <div className="editor-content-wrapper">
+          {editorLocked && pausedTaskId !== null && (
+            <div className="editor-lock-banner">
+              ⏸ Editor is paused while task is suspended.{' '}
+              <button
+                className="editor-lock-resume-btn"
+                onClick={() => resumeTask(pausedTaskId)}
+              >
+                Resume task to edit
+              </button>
+            </div>
+          )}
+          <div className="editor-content" ref={editorContainerRef} />
+        </div>
       ) : (
         <div className="editor-empty">
           <p>Open a file from the Explorer to start editing</p>

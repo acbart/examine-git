@@ -15,6 +15,8 @@ interface FilesystemState {
   readFile: (path: string) => VirtualFile | undefined;
   writeFile: (path: string, content: string) => void;
   listFiles: () => VirtualFile[];
+  /** Bulk-replace the entire filesystem with the given path→content map. */
+  setFiles: (contents: Record<string, string>) => void;
 }
 
 function detectLanguage(path: string): FileLanguage {
@@ -53,4 +55,11 @@ export const useFilesystemStore = create<FilesystemState>()((set, get) => ({
     }),
   listFiles: () =>
     Object.values(get().files).filter((f): f is VirtualFile => f !== undefined),
+  setFiles: (contents) => {
+    const newFiles: Record<string, VirtualFile> = {};
+    for (const [path, content] of Object.entries(contents)) {
+      newFiles[path] = makeFile(path, content);
+    }
+    set({ files: newFiles });
+  },
 }));

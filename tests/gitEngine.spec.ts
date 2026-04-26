@@ -1,4 +1,4 @@
-import { executeGitCommand } from '../src/features/git/gitEngine';
+import { executeGitCommand, getFilesAtBranch } from '../src/features/git/gitEngine';
 import type { GitRepositoryState } from '../src/features/git/gitTypes';
 
 function makeEmptyState(): GitRepositoryState {
@@ -330,5 +330,95 @@ describe('gitEngine – log', () => {
         const secondIdx = output.indexOf('second');
         // second commit should appear before first in the output (reverse)
         expect(secondIdx).toBeLessThan(firstIdx);
+    });
+});
+
+describe('gitEngine – getFilesAtBranch', () => {
+    test('returns empty object for unknown branch', () => {
+        const state = makeInitedState();
+        expect(getFilesAtBranch('nonexistent', state)).toEqual({});
+    });
+
+    test('returns empty object for a branch with no commits', () => {
+        const state: GitRepositoryState = {
+            ...makeInitedState(),
+            branches: { main: { name: 'main', commitHashes: [] } },
+            commits: {},
+        };
+        expect(getFilesAtBranch('main', state)).toEqual({});
+    });
+
+    test('returns file contents from a single commit', () => {
+        const state: GitRepositoryState = {
+            ...makeInitedState(),
+            commits: {
+                aaa: {
+                    hash: 'aaa',
+                    message: 'first',
+                    timestamp: '',
+                    files: ['src/main.ts'],
+                    fileContents: { 'src/main.ts': 'console.log("hi")' },
+                },
+            },
+            branches: { main: { name: 'main', commitHashes: ['aaa'] } },
+        };
+        expect(getFilesAtBranch('main', state)).toEqual({ 'src/main.ts': 'console.log("hi")' });
+    });
+
+    test('later commits overwrite earlier ones for the same path', () => {
+        const state: GitRepositoryState = {
+            ...makeInitedState(),
+            commits: {
+                aaa: {
+                    hash: 'aaa',
+                    message: 'first',
+                    timestamp: '',
+                    files: ['src/main.ts'],
+                    fileContents: { 'src/main.ts': 'v1' },
+                },
+                bbb: {
+                    hash: 'bbb',
+                    message: 'second',
+                    timestamp: '',
+                    files: ['src/main.ts'],
+                    fileContents: { 'src/main.ts': 'v2' },
+                },
+            },
+            branches: { main: { name: 'main', commitHashes: ['aaa', 'bbb'] } },
+        };
+        expect(getFilesAtBranch('main', state)['src/main.ts']).toBe('v2');
+    });
+
+    test('accumulates files across multiple commits on a branch', () => {
+        const state: GitRepositoryState = {
+            ...makeInitedState(),
+            commits: {
+                aaa: {
+                    hash: 'aaa',
+                    message: 'add main',
+                    timestamp: '',
+                    files: ['src/main.ts'],
+                    fileContents: { 'src/main.ts': 'main content' },
+                },
+                bbb: {
+                    hash: 'bbb',
+                    message: 'add readme',
+                    timestamp: '',
+                    files: ['README.md'],
+                    fileContents: { 'README.md': '# readme' },
+                },
+            },
+            branches: { main: { name: 'main', commitHashes: ['aaa', 'bbb'] } },
+        };
+        const files = getFilesAtBranch('main', state);
+        expect(files['src/main.ts']).toBe('main content');
+        expect(files['README.md']).toBe('# readme');
+    });
+
+    test('commit stores fileContents when using executeGitCommand commit', () => {
+        const state: GitRepositoryState = { ...makeInitedState(), stagedFiles: ['src/main.ts'] };
+        const { newState } = executeGitCommand(['commit', '-m', 'init'], state, FILES);
+        const files = getFilesAtBranch('main', newState);
+        expect(files['src/main.ts']).toBe(FILES['src/main.ts']);
     });
 });

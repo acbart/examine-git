@@ -112,11 +112,18 @@ export function executeGitCommand(
         : (rest.length > 0 ? rest.join(' ') : 'no message');
 
       const hash = generateHash();
+      const commitFileContents: Record<string, string> = {};
+      for (const f of state.stagedFiles) {
+        if (fileContents[f] !== undefined) {
+          commitFileContents[f] = fileContents[f] as string;
+        }
+      }
       const commit: GitCommit = {
         hash,
         message,
         timestamp: new Date().toISOString(),
         files: [...state.stagedFiles],
+        fileContents: commitFileContents,
       };
 
       const newTracked = { ...state.trackedFiles };
@@ -321,6 +328,28 @@ export function executeGitCommand(
     default:
       return { output: `git: '${subcommand}' is not a git command. See 'git help'.`, newState: state };
   }
+}
+
+/**
+ * Reconstructs file contents for a branch by replaying all of its commits
+ * in order and merging each commit's `fileContents`.  The last write to a
+ * given path wins, which mirrors real-git semantics for a linear history.
+ */
+export function getFilesAtBranch(
+  branchName: string,
+  state: GitRepositoryState,
+): Record<string, string> {
+  const branch = state.branches[branchName];
+  if (branch === undefined) return {};
+
+  const result: Record<string, string> = {};
+  for (const hash of branch.commitHashes) {
+    const commit = state.commits[hash];
+    if (commit !== undefined) {
+      Object.assign(result, commit.fileContents);
+    }
+  }
+  return result;
 }
 
 export { getCurrentCommitHash };

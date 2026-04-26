@@ -1,9 +1,11 @@
 import { useGitStore } from '../../features/git/gitStore';
 import { useFilesystemStore, type VirtualFile } from '../../features/filesystem/filesystemStore';
+import { useQuizStore } from '../../features/quiz/quizStore';
 
 export function SourceControlPanel() {
   const { repo } = useGitStore();
   const { files } = useFilesystemStore();
+  const { activeTaskId, taskStates } = useQuizStore();
 
   const allFiles = Object.values(files).filter((f): f is VirtualFile => f !== undefined);
 
@@ -20,10 +22,20 @@ export function SourceControlPanel() {
     }
   }
 
+  const activeTaskBranch =
+    activeTaskId !== null ? taskStates[activeTaskId]?.workingBranch ?? null : null;
+
   return (
     <div className="source-control-panel">
       <div className="panel-header">SOURCE CONTROL</div>
-      <div className="sc-branch">Branch: <strong>{repo.currentBranch}</strong></div>
+      <div className="sc-branch">
+        Branch: <strong>{repo.currentBranch}</strong>
+        {activeTaskBranch !== null && (
+          <span className="sc-task-badge" title="Working on a task">
+            {' '}📋 Task
+          </span>
+        )}
+      </div>
 
       {repo.stagedFiles.length > 0 && (
         <div className="sc-section">
