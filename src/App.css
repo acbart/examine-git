@@ -1599,3 +1599,345 @@
   color: #45475a;
   font-size: 13px;
 }
+
+/* ── Expert-mode toggle ───────────────────────────────────────── */
+
+.quiz-expert-toggle {
+  background: none;
+  border: 1px solid #4a4a5a;
+  color: #9d9d9d;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.quiz-expert-toggle:hover {
+  border-color: #7a7a9a;
+  color: #cccccc;
+}
+
+.quiz-expert-toggle.active {
+  border-color: #0078d4;
+  color: #4da6ff;
+}
+
+/* ── Task question styles ─────────────────────────────────────── */
+
+.quiz-task-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quiz-task-body.active {
+  border-left: 2px solid #0078d4;
+  padding-left: 8px;
+}
+
+.quiz-task-dep-badge {
+  background: #3a2a0a;
+  border: 1px solid #6d4c14;
+  color: #e2a042;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.quiz-task-start-btn,
+.quiz-task-resume-btn {
+  background: #0e4e8a;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.quiz-task-start-btn:hover,
+.quiz-task-resume-btn:hover {
+  background: #1060a8;
+}
+
+.quiz-task-start-btn:disabled {
+  background: #2a2a3a;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.quiz-task-submitted {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quiz-task-submitted-label {
+  color: #73c991;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.quiz-task-reopen-btn {
+  background: none;
+  border: 1px solid #4a4a5a;
+  color: #9d9d9d;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.quiz-task-reopen-btn:hover {
+  border-color: #7a7a9a;
+  color: #cccccc;
+}
+
+.quiz-task-paused {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quiz-task-paused-label {
+  color: #e2a042;
+  font-size: 12px;
+}
+
+.quiz-task-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quiz-task-expert-info {
+  font-size: 12px;
+  color: #9d9d9d;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quiz-task-branch-name {
+  background: #1a1a2e;
+  border: 1px solid #3a3a5a;
+  color: #9cdcfe;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.quiz-task-commit-count {
+  color: #6d9eeb;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.quiz-task-expert-hint {
+  font-size: 11px;
+  color: #6d6d6d;
+}
+
+.quiz-task-expert-hint code {
+  background: #2a2a2a;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 11px;
+  color: #9cdcfe;
+}
+
+.quiz-task-unsaved-badge {
+  background: #3a2e0a;
+  border: 1px solid #6d5a14;
+  color: #e2c042;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.quiz-task-log,
+.quiz-task-checkpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 4px 0;
+  background: #1a1a1a;
+}
+
+.quiz-task-checkpoints-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6d6d6d;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 8px 4px;
+}
+
+.quiz-task-log-entry,
+.quiz-task-checkpoint-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.quiz-task-log-hash {
+  color: #f0a040;
+  font-family: monospace;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.quiz-task-log-msg,
+.quiz-task-checkpoint-msg {
+  color: #cccccc;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quiz-task-log-time,
+.quiz-task-checkpoint-time {
+  color: #6d6d6d;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.quiz-task-novice-hint {
+  font-size: 12px;
+  color: #9d9d9d;
+  margin: 0;
+}
+
+.quiz-task-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quiz-task-checkpoint-btn {
+  background: #1a4a2a;
+  color: #73c991;
+  border: 1px solid #2d7a46;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.quiz-task-checkpoint-btn:hover {
+  background: #245c35;
+}
+
+.quiz-task-pause-btn {
+  background: none;
+  color: #9d9d9d;
+  border: 1px solid #4a4a5a;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.quiz-task-pause-btn:hover {
+  border-color: #7a7a9a;
+  color: #cccccc;
+}
+
+.quiz-task-submit-btn {
+  background: #6f3fa0;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.quiz-task-submit-btn:hover:not(:disabled) {
+  background: #8957e5;
+}
+
+.quiz-task-submit-btn:disabled {
+  background: #2a2a3a;
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* ── Source control task badge ────────────────────────────────── */
+
+.sc-task-badge {
+  color: #6d9eeb;
+  font-size: 11px;
+}
+
+/* ── Terminal task badge ──────────────────────────────────────── */
+
+.terminal-task-badge {
+  color: #6d9eeb;
+  font-size: 11px;
+  background: #1a1a2e;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 1px 6px;
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Editor lock banner ───────────────────────────────────────── */
+
+.editor-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.editor-lock-banner {
+  background: #3a2a0a;
+  border-bottom: 1px solid #6d4c14;
+  color: #e2a042;
+  font-size: 12px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.editor-lock-resume-btn {
+  background: none;
+  border: 1px solid #6d4c14;
+  color: #e2a042;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.editor-lock-resume-btn:hover {
+  border-color: #e2a042;
+  color: #f0c060;
+}

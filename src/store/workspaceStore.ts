@@ -17,6 +17,11 @@ interface WorkspaceState {
   runFilePath: string | null;
   quizPanelOpen: boolean;
   pendingLineJump: LineJump | null;
+  /**
+   * When true the quiz panel shows git-aware terminology (branch names, commit
+   * hashes, "Push Branch" etc.).  When false a friendlier novice mode is shown.
+   */
+  preferExpertMode: boolean;
   setActiveWorkspace: (workspace: WorkspaceType) => void;
   openFile: (path: string) => void;
   closeTab: (path: string) => void;
@@ -27,6 +32,7 @@ interface WorkspaceState {
   toggleQuizPanel: () => void;
   requestLineJump: (path: string, line: number) => void;
   clearLineJump: () => void;
+  toggleExpertMode: () => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
@@ -38,6 +44,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
   runFilePath: 'src/main.ts',
   quizPanelOpen: true,
   pendingLineJump: null,
+  preferExpertMode: false,
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
   openFile: (path) =>
     set((state) => ({
@@ -64,4 +71,5 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
   toggleQuizPanel: () => set((state) => ({ quizPanelOpen: !state.quizPanelOpen })),
   requestLineJump: (path, line) => set({ pendingLineJump: { path, line } }),
   clearLineJump: () => set({ pendingLineJump: null }),
+  toggleExpertMode: () => set((state) => ({ preferExpertMode: !state.preferExpertMode })),
 }));

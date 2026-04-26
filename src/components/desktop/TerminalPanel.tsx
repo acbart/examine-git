@@ -4,6 +4,7 @@ import { useGithubStore } from '../../features/github/githubStore';
 import { useFilesystemStore } from '../../features/filesystem/filesystemStore';
 import { useExecutionStore } from '../../features/execution/executionStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useQuizStore } from '../../features/quiz/quizStore';
 
 interface TerminalLine {
   id: number;
@@ -26,6 +27,7 @@ export function TerminalPanel() {
   const { listFiles, readFile } = useFilesystemStore();
   const { run: runCode } = useExecutionStore();
   const { runFilePath } = useWorkspaceStore();
+  const { activeTaskId, pauseTask } = useQuizStore();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -55,6 +57,8 @@ export function TerminalPanel() {
         fileContents[f.path] = f.content;
       }
 
+      const prevBranch = repo.currentBranch;
+
       if (args[0] === 'push') {
         const output = runCommand(args, fileContents);
         if (output.length > 0 && !output.startsWith('fatal')) {
@@ -64,6 +68,14 @@ export function TerminalPanel() {
       } else {
         const output = runCommand(args, fileContents);
         addLine('output', output);
+      }
+
+      // If a terminal checkout/switch changed the branch away from the active
+      // task branch, pause the task so its state is not corrupted.
+      const newBranch = useGitStore.getState().repo.currentBranch;
+      if (newBranch !== prevBranch && activeTaskId !== null) {
+        pauseTask();
+        addLine('output', '⚠ Active task paused because you switched branches.');
       }
     } else if (command === 'run') {
       const filename = (args.length > 0 ? args[0] : runFilePath) ?? '';
@@ -137,6 +149,11 @@ export function TerminalPanel() {
     <div className={`terminal-panel${collapsed ? ' collapsed' : ''}`}>
       <div className="terminal-header">
         <span>TERMINAL</span>
+        {activeTaskId !== null && (
+          <span className="terminal-task-badge" title="You are working on a task">
+            🔀 {repo.currentBranch}
+          </span>
+        )}
         <button
           className="panel-collapse-btn"
           onClick={() => setCollapsed((c) => !c)}

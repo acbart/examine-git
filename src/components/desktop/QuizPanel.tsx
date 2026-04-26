@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { useQuizStore } from '../../features/quiz/quizStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useGitStore } from '../../features/git/gitStore';
 import type {
   Question,
+  TaskQuestion,
   MultipleChoiceQuestion,
   FillBlankQuestion,
   MultiFillBlankQuestion,
@@ -11,6 +13,7 @@ import type {
   GradeResult,
   Rubric,
   LineReference,
+  TaskState,
 } from '../../features/quiz/quizTypes';
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -329,6 +332,246 @@ function FreeResponseRenderer({
   );
 }
 
+// ── Task question renderer ────────────────────────────────────────
+
+function TaskQuestionRenderer({
+  question,
+  taskState,
+  isActive,
+  expertMode,
+}: {
+  question: TaskQuestion;
+  taskState: TaskState | undefined;
+  isActive: boolean;
+  expertMode: boolean;
+}) {
+  const { startTask, pauseTask, resumeTask, submitTask, saveCheckpoint, reopenTask, taskStates, answers } =
+    useQuizStore();
+  const { openFile, requestLineJump } = useWorkspaceStore();
+  const gitRepo = useGitStore((s) => s.repo);
+
+  // Check whether the prerequisite task (fromTask) has been submitted.
+  const depQuestionId =
+    typeof question.baseBranch === 'object' ? question.baseBranch.fromTask : null;
+  const depTaskState = depQuestionId ? (taskStates[depQuestionId] ?? null) : null;
+  const depNotMet = depQuestionId !== null && depTaskState?.status !== 'submitted';
+
+  const status = taskState?.status ?? 'not-started';
+  const workingBranch = taskState?.workingBranch ?? null;
+
+  // Compute how many commits the student made above the base.
+  const branchData = workingBranch ? gitRepo.branches[workingBranch] : undefined;
+  const commitCount = Math.max(
+    0,
+    (branchData?.commitHashes.length ?? 0) - (taskState?.baseCommitCount ?? 0),
+  );
+
+  // All commits the student made on this task branch (above base).
+  const taskCommits = useMemo(() => {
+    if (!workingBranch || !taskState) return [];
+    const branch = gitRepo.branches[workingBranch];
+    if (!branch) return [];
+    return branch.commitHashes
+      .slice(taskState.baseCommitCount)
+      .map((h) => gitRepo.commits[h])
+      .filter(Boolean);
+  }, [gitRepo, taskState, workingBranch]);
+
+  // Detect whether there are uncommitted filesystem changes vs. branch HEAD.
+  // We rely on git's stagedFiles as the primary indicator.
+  const hasUnsavedChanges =
+    isActive ? gitRepo.stagedFiles.length > 0 : Object.keys(taskState?.uncommittedChanges ?? {}).length > 0;
+
+  const submittedAnswer =
+    status === 'submitted'
+      ? answers[question.id]?.type === 'task'
+        ? answers[question.id]
+        : null
+      : null;
+
+  return (
+    <div className={`quiz-task-body${isActive ? ' active' : ''}`}>
+      {/* Dependency gate */}
+      {depNotMet && (
+        <div className="quiz-task-dep-badge">
+          🔒 Requires completion of task{' '}
+          <strong>{depQuestionId}</strong> first.
+        </div>
+      )}
+
+      {/* File hints */}
+      {question.fileHints && question.fileHints.length > 0 && (
+        <div className="quiz-linerefs">
+          {question.fileHints.map((ref, i) => (
+            <button
+              key={i}
+              className="quiz-lineref-link"
+              onClick={() => {
+                openFile(ref.path);
+                requestLineJump(ref.path, ref.line);
+              }}
+              title={`${ref.path} line ${ref.line}`}
+            >
+              📌 {ref.label ?? `${ref.path}:${ref.line}`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── NOT STARTED ── */}
+      {status === 'not-started' && (
+        <button
+          className="quiz-task-start-btn"
+          disabled={depNotMet}
+          onClick={() => startTask(question.id)}
+        >
+          ▶ Start Task
+        </button>
+      )}
+
+      {/* ── SUBMITTED ── */}
+      {status === 'submitted' && (
+        <div className="quiz-task-submitted">
+          <span className="quiz-task-submitted-label">
+            ✓ Submitted
+            {submittedAnswer?.type === 'task' && (
+              <> — {submittedAnswer.commitCount} commit{submittedAnswer.commitCount !== 1 ? 's' : ''}</>
+            )}
+          </span>
+          {expertMode && workingBranch && (
+            <code className="quiz-task-branch-name">{workingBranch}</code>
+          )}
+          <button
+            className="quiz-task-reopen-btn"
+            onClick={() => reopenTask(question.id)}
+          >
+            ↩ Reopen Task
+          </button>
+        </div>
+      )}
+
+      {/* ── IN-PROGRESS (paused – another task is active or none is active) ── */}
+      {status === 'in-progress' && !isActive && (
+        <div className="quiz-task-paused">
+          <span className="quiz-task-paused-label">
+            ⏸ Task paused
+            {commitCount > 0 && (
+              <> — {commitCount} commit{commitCount !== 1 ? 's' : ''} saved</>
+            )}
+          </span>
+          {workingBranch && expertMode && (
+            <code className="quiz-task-branch-name">{workingBranch}</code>
+          )}
+          <button
+            className="quiz-task-resume-btn"
+            onClick={() => resumeTask(question.id)}
+          >
+            ▶ Resume Task
+          </button>
+        </div>
+      )}
+
+      {/* ── IN-PROGRESS (this is the active task) ── */}
+      {status === 'in-progress' && isActive && (
+        <div className="quiz-task-workspace">
+          {expertMode ? (
+            /* Expert mode */
+            <>
+              <div className="quiz-task-expert-info">
+                Working on branch:{' '}
+                <code className="quiz-task-branch-name">{workingBranch}</code>
+                <span className="quiz-task-commit-count">{commitCount} commit{commitCount !== 1 ? 's' : ''}</span>
+              </div>
+              {hasUnsavedChanges && (
+                <div className="quiz-task-unsaved-badge">⚠ Unstaged changes</div>
+              )}
+              <div className="quiz-task-expert-hint">
+                Use the terminal: <code>git add .</code> &amp; <code>git commit -m "…"</code>
+              </div>
+              {/* Commit log */}
+              {taskCommits.length > 0 && (
+                <div className="quiz-task-log">
+                  {[...taskCommits].reverse().map((c) => (
+                    <div key={c!.hash} className="quiz-task-log-entry">
+                      <code className="quiz-task-log-hash">{c!.hash.slice(0, 7)}</code>
+                      <span className="quiz-task-log-msg">{c!.message}</span>
+                      <span className="quiz-task-log-time">
+                        {new Date(c!.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="quiz-task-actions">
+                <button
+                  className="quiz-task-pause-btn"
+                  onClick={() => pauseTask()}
+                >
+                  ⏸ Pause
+                </button>
+                <button
+                  className="quiz-task-submit-btn"
+                  disabled={commitCount < 1}
+                  title={commitCount < 1 ? 'Make at least one commit before submitting' : 'Push branch as your answer'}
+                  onClick={() => submitTask(question.id)}
+                >
+                  ⬆ Push Branch
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Novice mode */
+            <>
+              <p className="quiz-task-novice-hint">
+                Make your changes in the editor, then save a checkpoint when ready.
+              </p>
+              {hasUnsavedChanges && (
+                <div className="quiz-task-unsaved-badge">⚠ Unsaved checkpoint</div>
+              )}
+              {/* Checkpoint history */}
+              {taskCommits.length > 0 && (
+                <div className="quiz-task-checkpoints">
+                  <div className="quiz-task-checkpoints-title">Saved checkpoints</div>
+                  {[...taskCommits].reverse().map((c) => (
+                    <div key={c!.hash} className="quiz-task-checkpoint-entry">
+                      <span className="quiz-task-checkpoint-msg">{c!.message}</span>
+                      <span className="quiz-task-checkpoint-time">
+                        {new Date(c!.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="quiz-task-actions">
+                <button
+                  className="quiz-task-checkpoint-btn"
+                  onClick={() => saveCheckpoint(question.id)}
+                >
+                  💾 Save Checkpoint
+                </button>
+                <button
+                  className="quiz-task-pause-btn"
+                  onClick={() => pauseTask()}
+                >
+                  ⏸ Pause
+                </button>
+                <button
+                  className="quiz-task-submit-btn"
+                  disabled={commitCount < 1}
+                  title={commitCount < 1 ? 'Save at least one checkpoint before submitting' : 'Submit your work'}
+                  onClick={() => submitTask(question.id)}
+                >
+                  🏁 Submit My Work
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Question card ─────────────────────────────────────────────────
 
 function QuestionCard({
@@ -337,14 +580,16 @@ function QuestionCard({
   answer,
   grade,
   submitted,
+  expertMode,
 }: {
   question: Question;
   index: number;
   answer: UserAnswer | undefined;
   grade: GradeResult | undefined;
   submitted: boolean;
+  expertMode: boolean;
 }) {
-  const { setAnswer } = useQuizStore();
+  const { setAnswer, taskStates, activeTaskId } = useQuizStore();
 
   function onAnswer(a: UserAnswer) {
     setAnswer(question.id, a);
@@ -396,6 +641,15 @@ function QuestionCard({
             onAnswer={onAnswer}
           />
         );
+      case 'task':
+        return (
+          <TaskQuestionRenderer
+            question={question}
+            taskState={taskStates[question.id]}
+            isActive={activeTaskId === question.id}
+            expertMode={expertMode}
+          />
+        );
     }
   }
 
@@ -405,6 +659,7 @@ function QuestionCard({
     'multi-fill-blank': 'Fill in the Blanks',
     matching: 'Matching',
     'free-response': 'Free Response',
+    task: 'Task',
   };
 
   return (
@@ -446,9 +701,11 @@ export function QuizPanel() {
     submitGroup,
     advanceGroup,
     goToGroup,
+    activeTaskId,
+    pauseTask,
   } = useQuizStore();
 
-  const { toggleQuizPanel } = useWorkspaceStore();
+  const { toggleQuizPanel, preferExpertMode, toggleExpertMode } = useWorkspaceStore();
 
   if (!quiz) {
     return (
@@ -468,15 +725,34 @@ export function QuizPanel() {
   const isSubmitted = submittedGroups.has(currentGroupIndex);
   const isLast = currentGroupIndex === quiz.groups.length - 1;
 
+  // For task groups: the group is "submitted" when its task is submitted.
+  const taskQuestion = group.questions.find((q) => q.type === 'task');
+  const groupIsEffectivelySubmitted =
+    isSubmitted || (taskQuestion?.type === 'task' && answers[taskQuestion.id]?.type === 'task');
+
   const answeredCount = group.questions.filter((q) => answers[q.id] !== undefined).length;
   const required = group.requireAll ? group.questions.length : (group.minRequired ?? 1);
-  const canSubmit = !isSubmitted && answeredCount >= required;
+  const canSubmit = !groupIsEffectivelySubmitted && answeredCount >= required;
+
+  function handleGoToGroup(index: number) {
+    if (activeTaskId !== null) {
+      pauseTask();
+    }
+    goToGroup(index);
+  }
 
   return (
     <div className="quiz-panel">
       {/* Header */}
       <div className="quiz-panel-header">
         <span className="quiz-panel-title">📝 {quiz.title}</span>
+        <button
+          className={`quiz-expert-toggle${preferExpertMode ? ' active' : ''}`}
+          onClick={toggleExpertMode}
+          title={preferExpertMode ? 'Switch to novice mode' : 'Switch to expert (Git) mode'}
+        >
+          {preferExpertMode ? '🔀 Expert' : '📖 Novice'}
+        </button>
         <button className="quiz-close-btn" onClick={toggleQuizPanel} title="Close quiz panel">
           ×
         </button>
@@ -488,7 +764,7 @@ export function QuizPanel() {
           <button
             key={g.id}
             className={`quiz-group-tab${i === currentGroupIndex ? ' active' : ''}${submittedGroups.has(i) ? ' done' : ''}`}
-            onClick={() => goToGroup(i)}
+            onClick={() => handleGoToGroup(i)}
           >
             {submittedGroups.has(i) ? '✓ ' : ''}
             {g.title ?? `Part ${i + 1}`}
@@ -517,39 +793,42 @@ export function QuizPanel() {
             index={i}
             answer={answers[q.id]}
             grade={grades[q.id]}
-            submitted={isSubmitted}
+            submitted={groupIsEffectivelySubmitted}
+            expertMode={preferExpertMode}
           />
         ))}
       </div>
 
-      {/* Footer actions */}
-      <div className="quiz-footer">
-        <span className="quiz-progress-hint">
-          {isSubmitted
-            ? `Submitted · ${group.questions.filter((q) => grades[q.id]?.autograde === 'correct').length}/${group.questions.length} auto-graded correct`
-            : `${answeredCount}/${group.questions.length} answered`}
-        </span>
-        <div className="quiz-footer-btns">
-          {!isSubmitted && (
-            <button
-              className="quiz-submit-btn"
-              disabled={!canSubmit}
-              onClick={submitGroup}
-              title={canSubmit ? 'Submit answers for this part' : `Answer at least ${required} question(s) to submit`}
-            >
-              Submit
-            </button>
-          )}
-          {isSubmitted && !isLast && (
-            <button className="quiz-next-btn" onClick={advanceGroup}>
-              Next →
-            </button>
-          )}
-          {isSubmitted && isLast && (
-            <span className="quiz-complete-badge">🎉 Quiz complete!</span>
-          )}
+      {/* Footer actions — hidden for pure-task groups */}
+      {taskQuestion === undefined && (
+        <div className="quiz-footer">
+          <span className="quiz-progress-hint">
+            {groupIsEffectivelySubmitted
+              ? `Submitted · ${group.questions.filter((q) => grades[q.id]?.autograde === 'correct').length}/${group.questions.length} auto-graded correct`
+              : `${answeredCount}/${group.questions.length} answered`}
+          </span>
+          <div className="quiz-footer-btns">
+            {!groupIsEffectivelySubmitted && (
+              <button
+                className="quiz-submit-btn"
+                disabled={!canSubmit}
+                onClick={submitGroup}
+                title={canSubmit ? 'Submit answers for this part' : `Answer at least ${required} question(s) to submit`}
+              >
+                Submit
+              </button>
+            )}
+            {groupIsEffectivelySubmitted && !isLast && (
+              <button className="quiz-next-btn" onClick={advanceGroup}>
+                Next →
+              </button>
+            )}
+            {groupIsEffectivelySubmitted && isLast && (
+              <span className="quiz-complete-badge">🎉 Quiz complete!</span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

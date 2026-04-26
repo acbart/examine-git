@@ -3,6 +3,8 @@ export interface GitCommit {
   message: string;
   timestamp: string;
   files: string[];
+  /** File contents captured at commit time, keyed by path. */
+  fileContents: Record<string, string>;
 }
 
 export interface GitBranch {

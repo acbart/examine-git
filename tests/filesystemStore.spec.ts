@@ -99,4 +99,35 @@ describe('filesystemStore', () => {
         writeFile(path, '');
         expect(readFile(path)?.language).toBe(expectedLang);
     });
+
+    // ── setFiles ──────────────────────────────────────────────────
+
+    test('setFiles replaces entire filesystem with given contents', () => {
+        const { setFiles, listFiles } = useFilesystemStore.getState();
+        setFiles({ 'a.ts': 'const a = 1;', 'b.py': 'print("b")' });
+        const paths = listFiles().map((f) => f.path);
+        expect(paths).toHaveLength(2);
+        expect(paths).toContain('a.ts');
+        expect(paths).toContain('b.py');
+    });
+
+    test('setFiles correctly detects language for each new file', () => {
+        const { setFiles, readFile } = useFilesystemStore.getState();
+        setFiles({ 'main.ts': 'const x = 1;', 'style.css': 'body {}' });
+        expect(readFile('main.ts')?.language).toBe('typescript');
+        expect(readFile('style.css')?.language).toBe('css');
+    });
+
+    test('setFiles removes previously existing files', () => {
+        const { setFiles, readFile } = useFilesystemStore.getState();
+        setFiles({ 'new.ts': 'export {}' });
+        expect(readFile('src/main.ts')).toBeUndefined();
+        expect(readFile('README.md')).toBeUndefined();
+    });
+
+    test('setFiles stores the provided content', () => {
+        const { setFiles, readFile } = useFilesystemStore.getState();
+        setFiles({ 'hello.ts': 'export const hello = "world";' });
+        expect(readFile('hello.ts')?.content).toBe('export const hello = "world";');
+    });
 });

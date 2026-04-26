@@ -2,11 +2,17 @@ import { create } from 'zustand';
 import type {
   Quiz,
   Question,
+  TaskQuestion,
   UserAnswer,
+  TaskAnswer,
   GradeResult,
   AutogradeStrategy,
   AutogradeResult,
+  BranchCheck,
+  TaskState,
 } from './quizTypes';
+import { useGitStore } from '../git/gitStore';
+import { useFilesystemStore } from '../filesystem/filesystemStore';
 
 // ── Autograding (stubbed) ─────────────────────────────────────────
 
@@ -91,6 +97,65 @@ function runAutograde(
         // based on the result.
         return 'pending';
       }
+
+      case 'branch-diff': {
+        // branch-diff is evaluated separately in runBranchDiffAutograde.
+        break;
+      }
+    }
+  }
+  return 'pending';
+}
+
+/**
+ * Runs `branch-diff` autograde checks for a task question.
+ * `branchFiles` is the reconstructed file map of the submitted branch,
+ * `commitCount` is the number of commits above the base.
+ */
+function runBranchDiffAutograde(
+  checks: BranchCheck[],
+  branchFiles: Record<string, string>,
+  commitCount: number,
+): AutogradeResult {
+  for (const check of checks) {
+    switch (check.type) {
+      case 'fileExists':
+        if (branchFiles[check.path] === undefined) return 'incorrect';
+        break;
+      case 'fileContains':
+        if (!(branchFiles[check.path] ?? '').includes(check.pattern)) return 'incorrect';
+        break;
+      case 'fileMatches': {
+        try {
+          const re = new RegExp(check.pattern, check.flags ?? '');
+          if (!re.test(branchFiles[check.path] ?? '')) return 'incorrect';
+        } catch {
+          return 'pending';
+        }
+        break;
+      }
+      case 'commitCount': {
+        if (check.min !== undefined && commitCount < check.min) return 'incorrect';
+        if (check.max !== undefined && commitCount > check.max) return 'incorrect';
+        break;
+      }
+    }
+  }
+  return 'correct';
+}
+
+/**
+ * Grades a task question's autograde strategies at submission time.
+ * Only `branch-diff` strategies are evaluated; other strategy types are skipped.
+ */
+function gradeTaskAnswer(
+  strategies: AutogradeStrategy[],
+  branchFiles: Record<string, string>,
+  commitCount: number,
+): AutogradeResult {
+  for (const strategy of strategies) {
+    if (strategy.type === 'branch-diff') {
+      return runBranchDiffAutograde(strategy.checks, branchFiles, commitCount);
     }
   }
   return 'pending';
@@ -192,6 +257,36 @@ const DEMO_QUIZ: Quiz = {
         },
       ],
     },
+    {
+      id: 'group-3',
+      title: 'Add a multiply function',
+      requireAll: true,
+      questions: [
+        {
+          id: 'q7',
+          type: 'task',
+          text: 'Add a `multiply(a, b)` function to {link:src/main.ts#5:src/main.ts} that returns the product of two numbers. Then call it with the arguments `3` and `4` and log the result.',
+          baseBranch: 'main',
+          fileHints: [{ path: 'src/main.ts', line: 5, label: 'add function (for reference)' }],
+          requiredFiles: ['src/main.ts'],
+          autograde: [
+            {
+              type: 'branch-diff',
+              checks: [
+                { type: 'fileContains', path: 'src/main.ts', pattern: 'multiply' },
+                { type: 'commitCount', min: 1 },
+              ],
+            },
+          ],
+          rubric: {
+            criteria: [
+              { id: 'r1', description: 'multiply function is defined and correct', points: 2 },
+              { id: 'r2', description: 'multiply is called and result is logged', points: 1 },
+            ],
+          },
+        },
+      ],
+    },
   ],
 };
 
@@ -204,6 +299,10 @@ interface QuizState {
   submittedGroups: Set<number>;
   answers: Record<string, UserAnswer | undefined>;
   grades: Record<string, GradeResult | undefined>;
+  /** Per-question runtime state for task questions. */
+  taskStates: Record<string, TaskState | undefined>;
+  /** The question id of the task currently being worked on, or null. */
+  activeTaskId: string | null;
 
   setQuiz: (quiz: Quiz) => void;
   clearQuiz: () => void;
@@ -213,6 +312,23 @@ interface QuizState {
   goToGroup: (index: number) => void;
   setRubricScore: (questionId: string, criterionId: string, score: number) => void;
   setRubricComment: (questionId: string, criterionId: string, comment: string) => void;
+
+  // ── Task actions ──────────────────────────────────────────────
+  /** Start a new task (or resume a paused one). */
+  startTask: (questionId: string) => void;
+  /** Pause the active task, snapshotting any uncommitted changes. */
+  pauseTask: () => void;
+  /** Resume a previously paused task. */
+  resumeTask: (questionId: string) => void;
+  /** Submit the active task branch as the answer. */
+  submitTask: (questionId: string) => void;
+  /**
+   * Save a checkpoint commit in novice mode:
+   * stages all files and commits with a timestamped message.
+   */
+  saveCheckpoint: (questionId: string) => void;
+  /** Reopen a submitted task so the student can continue working on it. */
+  reopenTask: (questionId: string) => void;
 }
 
 export const useQuizStore = create<QuizState>()((set, get) => ({
@@ -221,12 +337,30 @@ export const useQuizStore = create<QuizState>()((set, get) => ({
   submittedGroups: new Set(),
   answers: {},
   grades: {},
+  taskStates: {},
+  activeTaskId: null,
 
   setQuiz: (quiz) =>
-    set({ quiz, currentGroupIndex: 0, submittedGroups: new Set(), answers: {}, grades: {} }),
+    set({
+      quiz,
+      currentGroupIndex: 0,
+      submittedGroups: new Set(),
+      answers: {},
+      grades: {},
+      taskStates: {},
+      activeTaskId: null,
+    }),
 
   clearQuiz: () =>
-    set({ quiz: null, currentGroupIndex: 0, submittedGroups: new Set(), answers: {}, grades: {} }),
+    set({
+      quiz: null,
+      currentGroupIndex: 0,
+      submittedGroups: new Set(),
+      answers: {},
+      grades: {},
+      taskStates: {},
+      activeTaskId: null,
+    }),
 
   setAnswer: (questionId, answer) =>
     set((state) => ({ answers: { ...state.answers, [questionId]: answer } })),
@@ -302,4 +436,224 @@ export const useQuizStore = create<QuizState>()((set, get) => ({
         },
       };
     }),
+
+  // ── Task actions ────────────────────────────────────────────────
+
+  startTask: (questionId) => {
+    const state = get();
+    const quiz = state.quiz;
+    if (!quiz) return;
+
+    const question = quiz.groups
+      .flatMap((g) => g.questions)
+      .find((q) => q.id === questionId) as TaskQuestion | undefined;
+    if (!question || question.type !== 'task') return;
+
+    // Pause any other active task first.
+    if (state.activeTaskId !== null && state.activeTaskId !== questionId) {
+      get().pauseTask();
+    }
+
+    // If already in-progress, delegate to resumeTask.
+    const existing = state.taskStates[questionId];
+    if (existing?.status === 'in-progress') {
+      get().resumeTask(questionId);
+      return;
+    }
+
+    // Do not restart a submitted task.
+    if (existing?.status === 'submitted') return;
+
+    // Resolve base branch.
+    let baseBranch: string;
+    if (typeof question.baseBranch === 'string') {
+      baseBranch = question.baseBranch;
+    } else {
+      const depId = question.baseBranch.fromTask;
+      const depTask = state.taskStates[depId];
+      if (!depTask || depTask.status !== 'submitted') return;
+      const depAnswer = state.answers[depId];
+      if (!depAnswer || depAnswer.type !== 'task') return;
+      baseBranch = depAnswer.submittedBranch;
+    }
+
+    // Generate a unique branch name.
+    const branchName = question.taskBranchPrefix ?? `task/${quiz.id}/${questionId}`;
+    const gitStore = useGitStore.getState();
+
+    // Create the branch off the base (no-op if it already exists from a prior session).
+    if (!gitStore.repo.branches[branchName]) {
+      const created = gitStore.createBranchFrom(branchName, baseBranch);
+      if (!created) return;
+    }
+
+    // Checkout and update the filesystem.
+    gitStore.checkoutBranch(branchName);
+
+    // Apply starterPatches as an initial commit, if present.
+    if (question.starterPatches && question.starterPatches.length > 0) {
+      const fsStore = useFilesystemStore.getState();
+      for (const patch of question.starterPatches) {
+        fsStore.writeFile(patch.path, patch.content);
+      }
+      const fileContents: Record<string, string> = {};
+      for (const f of useFilesystemStore.getState().listFiles()) {
+        fileContents[f.path] = f.content;
+      }
+      useGitStore.getState().runCommand(['add', '.'], fileContents);
+      useGitStore.getState().runCommand(['commit', '-m', 'Task setup'], fileContents);
+    }
+
+    const baseCommitCount =
+      useGitStore.getState().repo.branches[branchName]?.commitHashes.length ?? 0;
+
+    set((s) => ({
+      taskStates: {
+        ...s.taskStates,
+        [questionId]: {
+          status: 'in-progress',
+          workingBranch: branchName,
+          baseCommitCount,
+          uncommittedChanges: {},
+        },
+      },
+      activeTaskId: questionId,
+    }));
+  },
+
+  pauseTask: () => {
+    const state = get();
+    const questionId = state.activeTaskId;
+    if (!questionId) return;
+    const taskState = state.taskStates[questionId];
+    if (!taskState || !taskState.workingBranch) return;
+
+    // Diff current filesystem against branch HEAD to capture unsaved work.
+    const headFiles = useGitStore.getState().getFilesAtBranch(taskState.workingBranch);
+    const uncommittedChanges: Record<string, string> = {};
+    for (const file of useFilesystemStore.getState().listFiles()) {
+      if (headFiles[file.path] !== file.content) {
+        uncommittedChanges[file.path] = file.content;
+      }
+    }
+
+    set((s) => ({
+      taskStates: {
+        ...s.taskStates,
+        [questionId]: { ...taskState, uncommittedChanges },
+      },
+      activeTaskId: null,
+    }));
+  },
+
+  resumeTask: (questionId) => {
+    const state = get();
+    // Pause any other active task first.
+    if (state.activeTaskId !== null && state.activeTaskId !== questionId) {
+      get().pauseTask();
+    }
+
+    const taskState = state.taskStates[questionId];
+    if (!taskState || taskState.status !== 'in-progress') return;
+    if (!taskState.workingBranch) return;
+
+    // Restore the branch HEAD in the filesystem.
+    useGitStore.getState().checkoutBranch(taskState.workingBranch);
+
+    // Re-apply any uncommitted changes saved at pause time.
+    if (Object.keys(taskState.uncommittedChanges).length > 0) {
+      const fsStore = useFilesystemStore.getState();
+      for (const [path, content] of Object.entries(taskState.uncommittedChanges)) {
+        fsStore.writeFile(path, content);
+      }
+    }
+
+    set({ activeTaskId: questionId });
+  },
+
+  submitTask: (questionId) => {
+    const state = get();
+    const taskState = state.taskStates[questionId];
+    if (!taskState || taskState.status !== 'in-progress') return;
+    if (!taskState.workingBranch) return;
+
+    const gitStore = useGitStore.getState();
+    const branch = gitStore.repo.branches[taskState.workingBranch];
+    const commitCount = (branch?.commitHashes.length ?? 0) - taskState.baseCommitCount;
+    if (commitCount < 1) return; // at least one commit is required
+
+    const branchFiles = gitStore.getFilesAtBranch(taskState.workingBranch);
+    const quiz = state.quiz;
+    let autograde: AutogradeResult = 'pending';
+    if (quiz) {
+      const question = quiz.groups
+        .flatMap((g) => g.questions)
+        .find((q) => q.id === questionId);
+      if (question && question.type === 'task' && question.autograde) {
+        autograde = gradeTaskAnswer(question.autograde, branchFiles, commitCount);
+      }
+    }
+
+    const answer: TaskAnswer = {
+      type: 'task',
+      submittedBranch: taskState.workingBranch,
+      commitCount,
+    };
+
+    set((s) => ({
+      answers: { ...s.answers, [questionId]: answer },
+      grades: {
+        ...s.grades,
+        [questionId]: {
+          questionId,
+          autograde,
+          submittedBranch: taskState.workingBranch ?? undefined,
+        },
+      },
+      taskStates: {
+        ...s.taskStates,
+        [questionId]: { ...taskState, status: 'submitted', uncommittedChanges: {} },
+      },
+      activeTaskId: s.activeTaskId === questionId ? null : s.activeTaskId,
+    }));
+  },
+
+  saveCheckpoint: (questionId) => {
+    const state = get();
+    if (state.activeTaskId !== questionId) return;
+    const taskState = state.taskStates[questionId];
+    if (!taskState || taskState.status !== 'in-progress') return;
+
+    const fileContents: Record<string, string> = {};
+    for (const f of useFilesystemStore.getState().listFiles()) {
+      fileContents[f.path] = f.content;
+    }
+    const gitStore = useGitStore.getState();
+    gitStore.runCommand(['add', '.'], fileContents);
+    // Re-read after add in case state changed (it's synchronous here).
+    const updated: Record<string, string> = {};
+    for (const f of useFilesystemStore.getState().listFiles()) {
+      updated[f.path] = f.content;
+    }
+    gitStore.runCommand(
+      ['commit', '-m', `Checkpoint ${new Date().toLocaleString()}`],
+      updated,
+    );
+  },
+
+  reopenTask: (questionId) => {
+    const state = get();
+    const taskState = state.taskStates[questionId];
+    if (!taskState || taskState.status !== 'submitted') return;
+
+    set((s) => ({
+      taskStates: {
+        ...s.taskStates,
+        [questionId]: { ...taskState, status: 'in-progress' },
+      },
+      answers: { ...s.answers, [questionId]: undefined },
+      grades: { ...s.grades, [questionId]: undefined },
+    }));
+    get().resumeTask(questionId);
+  },
 }));
