@@ -378,18 +378,7 @@ function TaskQuestionRenderer({
   }, [gitRepo, taskState, workingBranch]);
 
   // Detect whether there are uncommitted filesystem changes vs. branch HEAD.
-  // We rely on git's stagedFiles / trackedFiles for the expert-mode badge.
-  const hasUncommittedChanges =
-    isActive &&
-    workingBranch !== null &&
-    (gitRepo.stagedFiles.length > 0 ||
-      Object.keys(gitRepo.trackedFiles).some(
-        (p) =>
-          !gitRepo.stagedFiles.includes(p) &&
-          gitRepo.trackedFiles[p] !== gitRepo.trackedFiles[p],
-      ));
-
-  // Simpler: any uncommitted changes from the last pause snapshot.
+  // We rely on git's stagedFiles as the primary indicator.
   const hasUnsavedChanges =
     isActive ? gitRepo.stagedFiles.length > 0 : Object.keys(taskState?.uncommittedChanges ?? {}).length > 0;
 

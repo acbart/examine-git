@@ -114,8 +114,9 @@ export function executeGitCommand(
       const hash = generateHash();
       const commitFileContents: Record<string, string> = {};
       for (const f of state.stagedFiles) {
-        if (fileContents[f] !== undefined) {
-          commitFileContents[f] = fileContents[f] as string;
+        const content = fileContents[f];
+        if (content !== undefined) {
+          commitFileContents[f] = content;
         }
       }
       const commit: GitCommit = {
