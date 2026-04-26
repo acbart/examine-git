@@ -23,8 +23,18 @@ function getLanguageExtension(language: FileLanguage): Extension {
   }
 }
 
+function applyLineJump(view: EditorView, line: number) {
+  const lineCount = view.state.doc.lines;
+  const targetLine = Math.max(1, Math.min(line, lineCount));
+  const pos = view.state.doc.line(targetLine).from;
+  view.dispatch({
+    selection: { anchor: pos },
+    effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+  });
+}
+
 export function EditorPanel() {
-  const { activeFilePath, openTabs, closeTab, dirtyFiles, markDirty, markClean } = useWorkspaceStore();
+  const { activeFilePath, openTabs, closeTab, dirtyFiles, markDirty, markClean, pendingLineJump, clearLineJump } = useWorkspaceStore();
   const { readFile, writeFile } = useFilesystemStore();
   const openFile = useWorkspaceStore((s) => s.openFile);
 
@@ -80,11 +90,27 @@ export function EditorPanel() {
     viewRef.current = view;
     activePathRef.current = activeFilePath;
 
+    // Apply any pending line jump for the newly opened file.
+    const { pendingLineJump: jump, clearLineJump: clearJump } = useWorkspaceStore.getState();
+    if (jump && jump.path === activeFilePath) {
+      applyLineJump(view, jump.line);
+      clearJump();
+    }
+
     return () => {
       view.destroy();
       viewRef.current = null;
     };
   }, [activeFilePath, readFile, markDirty, saveCurrentFile]);
+
+  // Handle line jumps for the already-active file (no editor recreation needed).
+  useEffect(() => {
+    if (!pendingLineJump || pendingLineJump.path !== activeFilePath) return;
+    const view = viewRef.current;
+    if (!view) return;
+    applyLineJump(view, pendingLineJump.line);
+    clearLineJump();
+  }, [pendingLineJump, activeFilePath, clearLineJump]);
 
   return (
     <div className="editor-panel">
