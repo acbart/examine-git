@@ -7,7 +7,6 @@ import type {
   FillBlankQuestion,
   MultiFillBlankQuestion,
   MatchingQuestion,
-  FreeResponseQuestion,
   UserAnswer,
   GradeResult,
   Rubric,
@@ -263,11 +262,14 @@ function MatchingRenderer({
 }) {
   const mapping = answer?.type === 'matching' ? answer.mapping : {};
 
-  // Shuffle right-side options once per question id.
+  // Shuffle right-side options once per question id using a djb2-style hash seed.
   const shuffledRights = useMemo(() => {
     const rights = question.items.map((it) => it.right);
-    // Deterministic shuffle based on string hash of question id.
-    let seed = [...question.id].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    // djb2-style hash for a better distribution across different question IDs.
+    let seed = 5381;
+    for (let ci = 0; ci < question.id.length; ci++) {
+      seed = ((seed << 5) + seed + question.id.charCodeAt(ci)) & 0xffffffff;
+    }
     const arr = [...rights];
     for (let i = arr.length - 1; i > 0; i--) {
       seed = (seed * 1664525 + 1013904223) & 0xffffffff;
@@ -310,7 +312,6 @@ function FreeResponseRenderer({
   submitted,
   onAnswer,
 }: {
-  question: FreeResponseQuestion;
   answer: UserAnswer | undefined;
   submitted: boolean;
   onAnswer: (a: UserAnswer) => void;
@@ -390,7 +391,6 @@ function QuestionCard({
       case 'free-response':
         return (
           <FreeResponseRenderer
-            question={question}
             answer={answer}
             submitted={submitted}
             onAnswer={onAnswer}

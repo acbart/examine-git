@@ -36,8 +36,14 @@ function runAutograde(
         }
         if (answer.type === 'multi-fill-blank') {
           // `value` encodes blankId=expected pairs as "id1:val1;id2:val2"
+          // Split only on the first colon to allow colons in values.
           const expected = Object.fromEntries(
-            strategy.value.split(';').map((pair) => pair.split(':') as [string, string]),
+            strategy.value.split(';').map((pair) => {
+              const idx = pair.indexOf(':');
+              return idx === -1
+                ? ([pair, ''] as [string, string])
+                : ([pair.slice(0, idx), pair.slice(idx + 1)] as [string, string]);
+            }),
           );
           const allCorrect = Object.entries(expected).every(
             ([id, val]) => (answer.values[id] ?? '').trim() === val.trim(),
@@ -46,8 +52,14 @@ function runAutograde(
         }
         if (answer.type === 'matching') {
           // `value` encodes id=right pairs as "id1:right1;id2:right2"
+          // Split only on the first colon to allow colons in right-side values.
           const expected = Object.fromEntries(
-            strategy.value.split(';').map((pair) => pair.split(':') as [string, string]),
+            strategy.value.split(';').map((pair) => {
+              const idx = pair.indexOf(':');
+              return idx === -1
+                ? ([pair, ''] as [string, string])
+                : ([pair.slice(0, idx), pair.slice(idx + 1)] as [string, string]);
+            }),
           );
           const allCorrect = Object.entries(expected).every(
             ([id, right]) => (answer.mapping[id] ?? '').trim() === right.trim(),
