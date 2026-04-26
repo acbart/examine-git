@@ -3,6 +3,11 @@ import { create } from 'zustand';
 export type WorkspaceType = 'desktop' | 'github';
 export type SidePanel = 'explorer' | 'source-control';
 
+export interface LineJump {
+  path: string;
+  line: number;
+}
+
 interface WorkspaceState {
   activeWorkspace: WorkspaceType;
   activeFilePath: string | null;
@@ -10,6 +15,8 @@ interface WorkspaceState {
   dirtyFiles: string[];
   activeSidePanel: SidePanel;
   runFilePath: string | null;
+  quizPanelOpen: boolean;
+  pendingLineJump: LineJump | null;
   setActiveWorkspace: (workspace: WorkspaceType) => void;
   openFile: (path: string) => void;
   closeTab: (path: string) => void;
@@ -17,6 +24,9 @@ interface WorkspaceState {
   markClean: (path: string) => void;
   setActiveSidePanel: (panel: SidePanel) => void;
   setRunFilePath: (path: string | null) => void;
+  toggleQuizPanel: () => void;
+  requestLineJump: (path: string, line: number) => void;
+  clearLineJump: () => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
@@ -26,6 +36,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
   dirtyFiles: [],
   activeSidePanel: 'explorer',
   runFilePath: 'src/main.ts',
+  quizPanelOpen: true,
+  pendingLineJump: null,
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
   openFile: (path) =>
     set((state) => ({
@@ -49,4 +61,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
     set((state) => ({ dirtyFiles: state.dirtyFiles.filter((f) => f !== path) })),
   setActiveSidePanel: (panel) => set({ activeSidePanel: panel }),
   setRunFilePath: (path) => set({ runFilePath: path }),
+  toggleQuizPanel: () => set((state) => ({ quizPanelOpen: !state.quizPanelOpen })),
+  requestLineJump: (path, line) => set({ pendingLineJump: { path, line } }),
+  clearLineJump: () => set({ pendingLineJump: null }),
 }));
